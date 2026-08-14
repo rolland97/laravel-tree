@@ -1,0 +1,375 @@
+---
+
+description: "Task list for laravel-tree v1"
+---
+
+# Tasks: laravel-tree v1 — core placement rule and accessible Filament tree page
+
+**Input**: Design documents from `/specs/001-tree-v1/`
+
+**Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md),
+[data-model.md](data-model.md), [contracts/public-api.md](contracts/public-api.md),
+[quickstart.md](quickstart.md)
+
+## ⚠️ Two template defaults are overridden for this feature
+
+1. **Tests are MANDATORY, not optional.** The shared template says tests are optional; the
+   constitution's Principle I says every behaviour change lands with the test that would have
+   caught its absence, **observed failing first**. The constitution governs
+   (`.specify/memory/constitution.md` § Governance). This was flagged in its own sync impact
+   report as a per-feature resolution rather than a template edit.
+2. **User stories MUST NOT be worked in parallel.** The template says stories can proceed in
+   parallel once foundational work is done. **For this feature they cannot**, and the reason is
+   evidentiary rather than technical — see the note under Phase 4.
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Can run in parallel — different files, no dependencies.
+- **[Story]**: US1–US4, or `SETUP`/`FOUND`/`SPIKE`/`POLISH`.
+- Every task names its real path.
+
+## Path conventions
+
+Single package at repository root: `src/`, `resources/`, `config/`, `database/`, `tests/`,
+per [plan.md](plan.md) § Project Structure.
+
+---
+
+## Phase 1: Setup — package skeleton and pipeline
+
+**Purpose**: A repository that builds, lints, analyses and runs three empty suites green.
+
+- [ ] T001 [SETUP] Create `composer.json`: name `rolland97/laravel-tree`, PHP `^8.3`,
+      `illuminate/database` + `illuminate/support` `^11.0|^12.0|^13.0`,
+      `staudenmeir/laravel-adjacency-list` `^1.26`. ⚠️ `filament/filament ^5.0` goes in
+      `require-dev` and `suggest` **only** — never `require` (`AGENTS.md` R-001).
+- [ ] T002 [SETUP] PSR-4 autoload: `Rolland\Tree\` → `src/`, `Rolland\Tree\Tests\` → `tests/`.
+- [ ] T003 [P] [SETUP] `pint.json` (laravel preset). ⚠️ Re-cite `AGENTS.md` R-032 against this
+      file — it is currently tagged `[pending artifact]`.
+- [ ] T004 [P] [SETUP] `phpstan.neon.dist` over `src` and `config`. ⚠️ Re-cite `AGENTS.md` R-031.
+- [ ] T005 [P] [SETUP] `phpunit.xml.dist` with three suites — `core`, `bridge`, `browser` —
+      `executionOrder="random"`, `failOnWarning`, `failOnRisky`, `failOnEmptyTestSuite`,
+      `beStrictAboutOutputDuringTests`. ⚠️ Re-cite `AGENTS.md` R-029.
+- [ ] T006 [SETUP] Orchestra Testbench + Pest 4 in `require-dev`; `tests/TestCase.php` and
+      `tests/Pest.php` applying it directory-wide.
+- [ ] T007 [SETUP] `src/TreeServiceProvider.php` — publishes config, translations and the
+      migration stub; conditionally registers the bridge provider when `Filament\Panel` exists.
+- [ ] T008 [P] [SETUP] `.github/workflows/tests.yml` — matrix across PHP 8.3/8.4 × Laravel
+      11/12/13 × `prefer-lowest`/`prefer-stable`. Actions pinned to full commit SHAs with a
+      version comment, explicit least-privilege `permissions:`. ⚠️ Re-cite `AGENTS.md` R-033.
+- [ ] T009 [SETUP] **CI job `core-without-filament`**: `composer remove --dev filament/filament`
+      then run the `core` suite. Research R8 — an arch test is not a substitute, because it
+      proves nothing was imported rather than that the package boots.
+- [ ] T010 [P] [SETUP] `.gitattributes` with `export-ignore` for `specs/`, `tests/`, `.specify/`,
+      `.claude/`, `resources/css/`, `resources/js/`, `.github/`. Constitution Principle VI.
+- [ ] T011 [P] [SETUP] `README.md`. ⚠️ It MUST NOT instruct hosts to add an `@source` glob or run
+      a bundler (`AGENTS.md` R-019/R-020), and MUST NOT claim "no commands at all" — state the
+      qualified form from research R6.
+
+**Checkpoint**: `composer test`, `composer analyse`, `composer test:lint` all green on empty suites.
+
+---
+
+## Phase 2: Foundational — the vocabulary every story needs
+
+**⚠️ BLOCKING**: no user story starts until this phase completes.
+
+- [ ] T012 [P] [FOUND] `config/tree.php` — `parent_column`, `position_column`, `tiebreaker`
+      (data-model.md § Configuration).
+- [ ] T013 [P] [FOUND] `src/Contracts/TreeNode.php` exactly as `contracts/public-api.md` states.
+      ⚠️ **No visibility member.** Visibility is a property of a node *and an actor*; putting it
+      here invites a global default, and a default fails in the unsafe direction.
+- [ ] T014 [FOUND] `src/Concerns/IsTreeNode.php` — `treeParentId()`, `treePosition()`, recursive
+      relationships. ⚠️ Deliberately does **not** implement `isValidTreeTarget()`: a default there
+      is the package deciding, and every host that forgot would silently inherit it.
+- [ ] T015 [P] [FOUND] `src/Enums/SiblingPlacement.php` with `needsReference()`.
+- [ ] T016 [P] [FOUND] `src/Exceptions/{CycleException,InvalidTargetException,UnreachableReferenceException}.php`.
+- [ ] T017 [P] [FOUND] `src/Events/{NodeMoved,SiblingsReordered}.php` per contracts.
+- [ ] T018 [P] [FOUND] `database/migrations/add_tree_columns.php.stub`. ⚠️ A **stub**, not an
+      auto-discovered migration (`AGENTS.md` R-002).
+- [ ] T019 [P] [FOUND] `lang/en/tree.php` — refusal messages and announcement templates,
+      publishable.
+- [ ] T020 [FOUND] Fixture model `tests/Fixtures/Category.php` (mirrors the source application).
+- [ ] T021 [FOUND] Fixture model `tests/Fixtures/Page.php` — **unrelated to Category**, different
+      column names, different tiebreaker. Research R9: one consumer proves nothing, and a single
+      fixture lets every configurable seam be accidentally hard-coded and still pass.
+
+**Checkpoint**: vocabulary exists; US1 can begin.
+
+---
+
+## Phase 3: User Story 1 — Place a node by naming a neighbour (P1) 🎯 MVP
+
+**Goal**: The placement rule, correct even when the caller saw only part of the tree.
+
+**Independent Test**: Whole story provable with `filament/filament` uninstalled.
+
+### Tests first — each watched failing (`AGENTS.md` R-023)
+
+- [ ] T022 [P] [US1] `tests/Core/ResolveSiblingPlacementTest.php`: `Before`/`After` against a
+      fully-visible group. ⚠️ **Name fixtures so a right and a wrong implementation differ** —
+      the read tie-breaks by name, so a careless fixture passes either way (`AGENTS.md` R-025).
+- [ ] T023 [P] [US1] Partial-visibility case: a hidden sibling sits **between** two visible ones;
+      the resolved index must fall in the complete group. Use `Aardvark` for the hidden sibling
+      (quickstart.md § SC-002).
+- [ ] T024 [P] [US1] Refusal: reference not a member of the complete group.
+- [ ] T025 [P] [US1] Refusal: reference in the group but **not** in `renderedSiblingIds`.
+- [ ] T026 [P] [US1] Refusal: reference is the node itself.
+- [ ] T027 [P] [US1] `LastChild` resolves with **no** reference supplied.
+- [ ] T028 [P] [US1] `tests/Core/MoveNodeTest.php`: cycle refusal (destination is a descendant).
+- [ ] T029 [P] [US1] Invalid-target refusal via `isValidTreeTarget()` answering false.
+- [ ] T030 [P] [US1] `tests/Core/OrderIntegrityTest.php`: after any move the affected group holds
+      a contiguous, collision-free sequence. ⚠️ **Its own `it()` case, never appended to an
+      ordering assertion with `->and()`** — a chain stops at the first failure, so it could never
+      be watched failing on its own (quickstart.md § SC-002/SC-003).
+- [ ] T031 [P] [US1] Atomicity: a failure mid-renumber leaves the previous order intact.
+- [ ] T032 [P] [US1] `NodeMoved` fires **exactly once** per move; `SiblingsReordered` once per
+      reorder; **no** audit record is written by the package.
+- [ ] T033 [P] [US1] Numeric-string keys: ids arriving from the driver as strings still match
+      their own group. Research R4 — this was found by static analysis, not by a test, and a
+      strict comparison would silently refuse a valid reference.
+- [ ] T034 [P] [US1] Every core test above also runs against the `Page` fixture (FR-045).
+- [ ] T035 [US1] **Watch T022–T034 fail.** Record each RED message in
+      `checklists/validation-log.md`. ⚠️ **If any test cannot be made to fail, that is the
+      finding** — investigate before proceeding (`AGENTS.md` R-023).
+
+### Implementation
+
+- [ ] T036 [US1] `src/Actions/ResolveSiblingPlacement.php` — resolve against the complete group,
+      refuse unreachable references. Cast plucked keys to `int` and compare strictly (R4).
+- [ ] T037 [US1] `src/Actions/MoveNode.php` — cycle guard, target guard, atomic renumber, fires
+      `NodeMoved`. No activity-log call (research R5).
+- [ ] T038 [US1] `src/Actions/ReorderSiblings.php` — same-parent case, fires `SiblingsReordered`.
+- [ ] T039 [US1] `src/Actions/PlaceNode.php` — the composed entry point hosts call.
+      ⚠️ **Named `PlaceNode`, never `DropNode`.** If this signature ever changes, **rename it**:
+      a renamed method throws before dispatch, whereas named arguments are silently discarded by
+      the container's method injection (`AGENTS.md` R-030).
+- [ ] T040 [US1] ⚠️ **Guard the one way the 071 defect can return.** `MoveNode` takes an integer
+      position, and today only a doc comment separates it from `PlaceNode`. Add a test asserting
+      the public surface offers **no** index-taking entry point, and make `MoveNode`'s role
+      explicit in its own docblock. Raised by the post-design constitution re-check (plan.md).
+- [ ] T041 [US1] `renderedSiblingIds` has **no default value** anywhere in the surface. An empty
+      default silently turns the visibility refusal into a no-op.
+- [ ] T042 [US1] Pint + PHPStan clean; all of T022–T034 green.
+
+**Checkpoint**: US1 shippable. ⚠️ **Ship it before starting US2** — see below.
+
+---
+
+## Phase 4: R10 spike — can a package serve a panel to a browser? (BLOCKING for US2–US4)
+
+**⚠️ This phase exists because research R10 is `[open]`, and three of the four stories depend on
+it.** The source application's browser tests run against a full Laravel application; that is
+**not** evidence the same works from inside a package.
+
+- [ ] T043 [SPIKE] Stand up the smallest possible Testbench panel with one trivial tree page.
+- [ ] T044 [SPIKE] Drive it with a browser driver: load the page, assert one element.
+- [ ] T045 [SPIKE] Run axe against it and get a result — in **both** colour schemes.
+- [ ] T046 [SPIKE] Confirm the panel serves **compiled CSS**. ⚠️ If it does not, every styling
+      assertion in US2–US4 is vacuous and the plan needs revising, not working around.
+- [ ] T047 [SPIKE] Record the outcome in `research.md` R10, changing its tag from `[open]` to
+      `[verified]` **or** to a named limitation. ⚠️ **Do not leave it `[open]` and proceed** —
+      "prove fragile seams first"; discovering the harness cannot serve a panel after the page
+      exists converts a spike into a rewrite.
+
+**Checkpoint**: R10 answered. Only now does US2 start.
+
+⚠️ **Why the stories are strictly sequential here, against the template's default.** US1 must
+ship with the pointer as the placement rule's **only** caller. Once a keyboard caller exists, no
+test result can say which of the two made the rule pass, and that evidence is not reproducible
+later. The source application shipped US1 alone for exactly this reason (an internal merge request, with no keyboard
+code at all). Parallelising the stories destroys the proof.
+
+---
+
+## Phase 5: User Story 2 — Render and drag a tree in a Filament panel (P2)
+
+### Tests first
+
+- [ ] T048 [P] [US2] `tests/Bridge/TreePageTest.php`: a host page declaring model + visible query
+      renders the full hierarchy.
+- [ ] T049 [P] [US2] Host-supplied badges, row actions, header actions and leaf slot all appear.
+- [ ] T050 [P] [US2] Quick search narrows displayed rows.
+- [ ] T051 [P] [US2] Confirmation flow: nothing is applied until confirmed.
+- [ ] T052 [P] [US2] `placeNode()` re-checks authorization **on the committing call**, and an
+      unauthorised call changes nothing.
+- [ ] T053 [P] [US2] `tests/Browser/DragTest.php`: drag reorder and drag nest produce the same
+      stored order as the equivalent `PlaceNode` call. ⚠️ Drag **after** rather than before —
+      a before-drop is indistinguishable between a right and wrong implementation.
+- [ ] T054 [P] [US2] Drag with a search active: hidden rows keep their relative order.
+- [ ] T055 [US2] **Watch T048–T054 fail**; record REDs.
+
+### Implementation
+
+- [ ] T056 [US2] `src/Filament/Pages/TreePage.php` — `nodesByParent()`, `searchVisibleIds()`,
+      `placeNode()`, `confirmPendingMove()`, `cancelPendingMove()`, and the host hooks.
+- [ ] T057 [US2] `src/Filament/FilamentTreeServiceProvider.php` — registers assets via
+      `FilamentAsset::register([...], package: 'rolland97/laravel-tree')`.
+- [ ] T058 [US2] `resources/views/tree.blade.php` and `tree-branch.blade.php`.
+      ⚠️ **Written from scratch against package classes, NOT copied.** Every visual class in the
+      source blades is a bare host utility that will not compile from `vendor/` (`AGENTS.md`
+      R-020).
+- [ ] T059 [US2] `resources/css/tree.css` — `ltree-` prefixed classes; `<x-filament::*>` for
+      anything Filament covers; inherit `var(--primary-*)` rather than defining a palette.
+- [ ] T060 [US2] Build pipeline (esbuild per research R6) producing `resources/dist/tree.css`.
+      **Commit the output.**
+- [ ] T061 [US2] Drag controller: pointer-position based, initiated only from a dedicated handle
+      so a row action never starts a drag (FR-023).
+- [ ] T062 [US2] ⚠️ **Verify styling live, in a real browser, light AND dark.** No suite assertion
+      can prove this — the harness serves no compiled CSS (quickstart.md § SC-005). Check the
+      stylesheet, not just the page: a bare-`<div>` probe reading `outline-style` cannot fail,
+      because its default is already `none`.
+
+**Checkpoint**: pointer users have a complete tree. Keyboard users still have nothing.
+
+---
+
+## Phase 6: User Story 3 — Traverse and describe the tree without a mouse (P3)
+
+### Tests first
+
+- [ ] T063 [P] [US3] `tests/Browser/KeyboardTraversalTest.php`: the whole tree is **one** tab stop
+      (count `tabindex="0"` — it must stay at 1 throughout).
+- [ ] T064 [P] [US3] Arrows move between displayed rows and **do not wrap** at either end.
+- [ ] T065 [P] [US3] Right expands then descends; Left collapses then ascends; Home/End jump.
+- [ ] T066 [P] [US3] ⚠️ **Assert the announced NAME of a row directly** — its own name only, not
+      its badges, not its action labels, and not its subtree when expanded. This is the assertion
+      the source application omitted while shipping four *correct* `aria-*` assertions
+      (`AGENTS.md` R-014).
+- [ ] T067 [P] [US3] Position and set size count **rendered** siblings. Scope the guard to a
+      search-filtered state so it **can** fail — the equivalent guard in the source application
+      could not, because privacy is filtered upstream of the count.
+- [ ] T068 [P] [US3] Role, `tabindex` and every `aria-*` sit on the **same** element.
+- [ ] T069 [P] [US3] axe reports zero criticals in light **and** dark.
+- [ ] T070 [US3] **Watch T063–T069 fail**; record REDs. ⚠️ **T067 is the one to distrust** — if it
+      passes immediately, the guard is measuring something downstream of the real guarantee.
+
+### Implementation
+
+- [ ] T071 [US3] Roving tabindex; one focusable row at a time.
+- [ ] T072 [US3] `onTreeKeydown` / `onTreeFocusOut` traversal in `resources/js/tree.js`.
+- [ ] T073 [US3] ARIA on the treeitem: level, position, set size, expanded, and
+      `aria-labelledby` pointing at the name span **alone**.
+- [ ] T074 [US3] Chevron decorative to assistive technology (`aria-hidden`, `tabindex="-1"`)
+      rather than labelled — the row already announces the state (FR-038).
+- [ ] T075 [US3] Focus ring via package CSS. ⚠️ `outline-none` zeroes `outline-style` while a
+      width utility only sets width — the ring then has width and colour but no style. Verify the
+      computed value live in both schemes.
+- [ ] T076 [US3] ⚠️ If the page uses any collapsible section, check its collapse button has an
+      accessible name. Filament's own component ships `aria-label=""`, which is a critical
+      violation the package would inherit (PKG-01 § Traps).
+
+**Checkpoint**: the tree is inspectable by keyboard and screen reader. Reordering still is not.
+
+---
+
+## Phase 7: User Story 4 — Reorder from the keyboard, with announcements (P4)
+
+### Tests first
+
+- [ ] T077 [P] [US4] `tests/Browser/KeyboardReorderTest.php`: pick up → announced.
+- [ ] T078 [P] [US4] Move among siblings → each new position announced, **nothing persisted**.
+- [ ] T079 [P] [US4] Put down → committed through the same path as the pointer, completion
+      announced. ⚠️ The source application shipped `put_down` with **no assertion at all** and
+      only its critique caught it.
+- [ ] T080 [P] [US4] Cancel → tree unchanged, cancellation announced.
+- [ ] T081 [P] [US4] Focus leaves the tree mid-hold → abandonment announced, nothing persisted.
+- [ ] T082 [P] [US4] Boundaries announced: only child, already first, **already last** — the
+      second omission the critique found.
+- [ ] T083 [P] [US4] Unauthorised pick-up → refusal announced, no hold begins.
+- [ ] T084 [P] [US4] A completed interaction fires **exactly one** move event, not one per
+      keystroke.
+- [ ] T085 [P] [US4] The announcement survives a re-render the package did not initiate.
+- [ ] T086 [US4] **Watch T077–T085 fail**; record REDs.
+
+### Implementation
+
+- [ ] T087 [US4] Held state lives client-side; **no server call until the drop**. A call per arrow
+      press would write one audit row per keystroke for what the user thinks of as one move.
+- [ ] T088 [US4] Commit through the **same** helper the pointer release uses — exactly one copy of
+      the placement contract.
+- [ ] T089 [US4] Live region excluded from morphing. ⚠️ Its content is **client state the server
+      knows nothing about**; a re-render fires more than one morph and the second wipes what the
+      first wrote.
+- [ ] T090 [US4] Morph hook checks **which** component morphed. ⚠️ Without it a host panel polling
+      a bell every 30 seconds silently abandons every held node. And scoping by component id does
+      **not** work — dropping the check rather than fixing it is how that defect got in.
+- [ ] T091 [US4] `focus()` after `$nextTick`. ⚠️ `focus()` on a hidden element is a silent no-op,
+      and at morph time the moved row's branch may still be `display: none`.
+- [ ] T092 [US4] ⚠️ Browser-harness traps (research R11): follow every expand with a waiting
+      assertion, because `keys()` is focus-then-type and a key pressed mid-expand lands on the
+      previously focused row. And `void` any `$wire.$refresh()` — awaited in a page evaluation it
+      returns a promise that never resolves, and hung the source application's run for fifteen
+      minutes.
+
+**Checkpoint**: all four stories functional.
+
+---
+
+## Phase 8: Polish, verification and the release gate
+
+- [ ] T093 [P] [POLISH] Re-cite the five `[pending artifact]` rules in `AGENTS.md` against the
+      files T003–T005/T008 created, retagging each `[ratified]`. ⚠️ A rule still citing an
+      intention after its artifact exists is drift.
+- [ ] T094 [P] [POLISH] Update the constitution's sync impact report: `README.md` now exists.
+- [ ] T095 [POLISH] Run every procedure in `quickstart.md` § Verification.
+- [ ] T096 [POLISH] `/speckit-analyze` for cross-artifact consistency.
+- [ ] T097 [POLISH] `/speckit-superb-critique`. ⚠️ **Run this before the branch is finished, not
+      only at the end** — on the last comparable slice it found three gaps that eleven guards and
+      2,313 passing tests did not, every one between the spec's words and what shipped.
+- [ ] T098 [POLISH] Confirm the distribution archive carries runtime only (quickstart.md § Release
+      gate).
+- [ ] T099 [POLISH] ⚠️ **SC-011 screen-reader walk** — the ten steps in `quickstart.md`. Needs a
+      machine with a real screen reader and **working audio**. **If no such machine is available,
+      leave this task OPEN and report SC-011 as UNPROVED.** Do not close it with an accessibility
+      tree dump or an axe pass; neither proves announcements work as heard sentences.
+- [ ] T100 [POLISH] ⚠️ **Do NOT tag.** The release gate is the consumer application adopting
+      this package through a path repository with its suite green — including its existing audit
+      tests **unchanged**, which is the strongest signal the event seam held. Tagging is
+      irreversible (`AGENTS.md` R-035).
+
+---
+
+## Dependencies & execution order
+
+### Phase dependencies
+
+- **Phase 1 Setup** → no dependencies.
+- **Phase 2 Foundational** → depends on Setup. **Blocks every story.**
+- **Phase 3 US1** → depends on Foundational. **MVP.**
+- **Phase 4 R10 spike** → independent of US1, so it MAY run alongside it. **Blocks US2–US4.**
+- **Phase 5 US2** → depends on US1 **shipped** and the spike answered.
+- **Phase 6 US3** → depends on US2 (there must be a rendered tree to traverse).
+- **Phase 7 US4** → depends on US3 (focus) and US1 (the rule).
+- **Phase 8 Polish** → depends on all four stories.
+
+### ⚠️ Story parallelism is FORBIDDEN here
+
+The template's default — stories proceed in parallel once foundational work is done — **does not
+apply**. US1 must ship with the pointer as the placement rule's sole caller; adding a keyboard
+caller destroys that evidence permanently, and it cannot be recovered afterwards. The only
+sanctioned parallelism across phases is the R10 spike alongside US1.
+
+### Parallel opportunities within a phase
+
+- T003/T004/T005, T008/T010/T011 — different files.
+- T012–T019 — different files.
+- All `Tests first` blocks within a single story.
+
+---
+
+## Implementation strategy
+
+1. Phase 1 + Phase 2 → foundation.
+2. Phase 3 → **stop, validate, ship US1 alone.**
+3. Phase 4 spike, in parallel with 3 if capacity allows → answer R10 before building on it.
+4. Phases 5 → 6 → 7, strictly in order, validating at each checkpoint.
+5. Phase 8, then the adoption slice in the consumer's repository, **then** the tag.
+
+## Notes
+
+- Every `Watch … fail` task is a real gate, not bookkeeping. A guard never seen red is unverified.
+- ⚠️ Three tasks exist specifically because the equivalent assertion was **missing** when the
+  source application shipped: T066 (the announced name), T079 (`put_down`), T082 (`already_last`).
+- Commit per task or logical group; Conventional Commits (`AGENTS.md` R-034).
+- Do not push, tag or release unless asked.
