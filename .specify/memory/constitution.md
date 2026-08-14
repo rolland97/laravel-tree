@@ -34,10 +34,12 @@ Templates and artifacts requiring updates:
   ⚠ README.md                             — does not exist yet. When written it
        MUST NOT tell hosts to publish a stylesheet or add an @source glob;
        Principle VI forbids requiring a host build step.
-  ⚠ AGENTS.md                             — does not exist yet. filament-tours
-       pairs its constitution with 27 citable operational rules; this repo has
-       no equivalent, so the Governance mapping table below is empty on purpose
-       rather than omitted.
+  ✅ AGENTS.md                             — WRITTEN 2026-08-14, hours after
+       ratification, which is why this document is already at 1.0.1. 40 rules,
+       each tagged [ratified] / [inherited] / [pending artifact] according to
+       whether its cited source exists in this repository today. The Governance
+       mapping table below is now real; it was deliberately empty for the length
+       of one commit rather than omitted.
 
 Deferred TODOs: none. RATIFICATION_DATE is the repository's first-commit date
 (2026-08-14), which is when the project was adopted.
@@ -243,14 +245,27 @@ skipped, say that. Work that was not run MUST NOT be described as verified.
 **Authority**: This constitution supersedes other practices in this repository. Where a practice and
 a principle conflict, the principle wins and the practice is the bug.
 
-**Relationship to `AGENTS.md`**: This repository has **no `AGENTS.md` yet**. The mapping table below
-is therefore empty rather than omitted, so its absence reads as a known gap instead of an oversight.
-If one is written, it becomes the operational expression of this document — this file says *why*, it
-says *exactly what, with file references* — and the two MUST NOT contradict each other.
+**Relationship to `AGENTS.md`**: `AGENTS.md` is the operational expression of this document — 40
+rules that agents load as a mandatory gate before planning. This file says *why*; `AGENTS.md` says
+*what, here, with sources*. They MUST NOT contradict each other. Where they appear to, this
+document governs and `AGENTS.md` is corrected.
+
+⚠️ **Its rules cite decision documents, not config files, and say so per rule.** This repository
+has no `composer.json`, `phpunit.xml`, CI workflow or `src/` yet, so a rule about PHPStan levels or
+suite ordering cannot cite the file that will enforce it. Each such rule is tagged **[pending
+artifact]** and MUST be re-cited when the plan creates that file. A rule still citing an intention
+after its artifact exists is drift, and is what MemoryLint is installed to catch.
 
 | Principle | AGENTS.md rules |
 |---|---|
-| I…VI | none yet — `AGENTS.md` not written |
+| I. Test-First | R-023…R-025, R-029 |
+| II. A move names a neighbour | R-007…R-011 |
+| III. Host owns privacy, persistence, words | R-002…R-006 |
+| IV. Accessible by construction | R-012…R-018 |
+| V. Core is Laravel, Filament is a bridge | R-001, R-026, R-027 |
+| VI. Ship runtime only | R-019…R-022, R-036 |
+| Platform and Toolchain | R-031…R-033 |
+| Development Workflow | R-028, R-034, R-035, R-037…R-040 |
 
 **Amendment procedure**: Amendments MUST be proposed as a documented change to this file, stating the
 principle affected, the reason, and the migration for anything already built against the previous
@@ -269,4 +284,19 @@ violation explicitly in its Complexity Tracking section rather than omitting the
 different rule source for this file is permitted only when this file is absent or unfilled, and MUST
 be labelled as a substitution rather than reported as a pass.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-14
+**Version**: 1.0.1 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-14
+
+<!--
+AMENDMENT 1.0.0 → 1.0.1 (2026-08-14)
+PATCH. `AGENTS.md` was written, so the Governance section's statement that it did
+not exist — and its deliberately empty mapping table — became false within hours
+of ratification. Replaced with the real mapping, plus a note that its rules cite
+decision documents rather than config files and carry a [pending artifact] tag
+where the enforcing file does not exist yet.
+
+PATCH rather than MINOR: nothing a principle permits or forbids changed. This is
+the constitution catching up with a fact about the repository, which is the
+failure mode its own "a quoted constraint is a claim" rule exists to prevent —
+recorded here rather than fixed silently.
+-->
+
