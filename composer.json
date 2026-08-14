@@ -1,0 +1,64 @@
+{
+    "name": "rolland97/laravel-tree",
+    "description": "Adjacency-list tree management for Eloquent, plus an accessible drag-and-keyboard Filament tree page.",
+    "keywords": ["laravel", "eloquent", "tree", "adjacency-list", "filament", "accessibility"],
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Rolland"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "illuminate/database": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "staudenmeir/laravel-adjacency-list": "^1.26"
+    },
+    "require-dev": {
+        "filament/filament": "^5.0",
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.20",
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-browser": "^4.0"
+    },
+    "suggest": {
+        "filament/filament": "Required only for the optional Filament v5 tree page bridge (^5.0)."
+    },
+    "autoload": {
+        "psr-4": {
+            "Rolland\\Tree\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Rolland\\Tree\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "test:core": "vendor/bin/pest --testsuite=core",
+        "test:bridge": "vendor/bin/pest --testsuite=bridge",
+        "test:browser": "vendor/bin/pest --testsuite=browser",
+        "test:lint": "vendor/bin/pint --test",
+        "lint": "vendor/bin/pint",
+        "analyse": "vendor/bin/phpstan analyse"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Rolland\\Tree\\TreeServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        },
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

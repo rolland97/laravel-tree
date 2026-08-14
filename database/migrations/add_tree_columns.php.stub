@@ -1,0 +1,56 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/*
+|--------------------------------------------------------------------------
+| Add tree columns
+|--------------------------------------------------------------------------
+|
+| ⚠️ This is a STUB, not a migration. laravel-tree never runs a migration of
+| its own (constitution Principle III, AGENTS.md R-002): the package cannot
+| know your table name, your key type, or whether you want the foreign key
+| constrained.
+|
+| Publish it, rename `YOUR_TABLE` below, then run it yourself:
+|
+|     php artisan vendor:publish --tag=tree-migrations
+|     php artisan migrate
+|
+| The column names must match config/tree.php.
+|
+*/
+
+return new class extends Migration
+{
+    private string $table = 'YOUR_TABLE';
+
+    public function up(): void
+    {
+        Schema::table($this->table, function (Blueprint $table): void {
+            $table->foreignId('parent_id')
+                ->nullable()
+                ->after('id')
+                ->constrained($this->table)
+                ->nullOnDelete();
+
+            // Not unique: a position is meaningful only within a sibling group.
+            $table->unsignedInteger('position')->default(0)->after('parent_id');
+
+            $table->index(['parent_id', 'position']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table($this->table, function (Blueprint $table): void {
+            $table->dropIndex(['parent_id', 'position']);
+            $table->dropConstrainedForeignId('parent_id');
+            $table->dropColumn('position');
+        });
+    }
+};

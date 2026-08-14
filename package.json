@@ -1,0 +1,13 @@
+{
+    "name": "laravel-tree",
+    "private": true,
+    "type": "module",
+    "description": "Build sources and browser-test tooling. NOT shipped — see .gitattributes export-ignore.",
+    "scripts": {
+        "build": "node build.mjs"
+    },
+    "devDependencies": {
+        "esbuild": "^0.25.0",
+        "playwright": "^1.49.0"
+    }
+}

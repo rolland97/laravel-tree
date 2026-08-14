@@ -167,23 +167,54 @@ pass. The second model is what makes "generic" a measured claim.
 
 ---
 
-## R10 — Browser testing inside a package **[open]**
+## R10 — Browser testing inside a package **[verified]**
 
-**Decision**: Deferred to Phase 2, when the bridge first needs it.
+**Settled 2026-08-14 by the T043–T047 spike**, before any of US2–US4 was built on it. All four
+questions are answered **yes**. `tests/Browser/SpikeTest.php` and
+`tests/Browser/HarnessProbeTest.php` are the evidence and stay in the suite.
 
-**What is unresolved**: US2–US4 need a real browser against a *served* Filament panel, but this
-package is not an application. Testbench can boot a panel in-process; whether it can serve one
-to a browser driver, and how axe is run against it, has **not** been verified here.
+| Question | Answer | How it was shown |
+|---|---|---|
+| Can a **package** serve a Filament panel to a browser driver? | **yes** | `visit('/admin/spike')` renders the panel; 8/8 browser tests green |
+| Does that panel serve **compiled CSS**? | **yes** | `getComputedStyle(...).backgroundColor` reads `rgb(185, 28, 28)` from `resources/dist/tree.css` |
+| Can **axe** be run against it, in **both** schemes? | **yes** | `assertNoAccessibilityIssues()` under `inLightMode()` and `inDarkMode()` |
+| Does the scheme switch actually take effect? | **yes** | the same probe computes `rgb(37, 99, 235)` in dark |
 
-**What would settle it**: stand up the smallest possible testbench panel with one tree page and
-drive it with a browser driver, **before** building Phase 2 on the assumption that it works.
-This is Principle "prove fragile seams first" — discovering the harness cannot serve a panel
-after the page exists converts a spike into a rewrite.
+**The stack**: `pestphp/pest-plugin-browser` v4.3.1 over Playwright 1.62.1 (chromium 1234), on
+Orchestra Testbench 11.2 with Filament 5.7.6, Livewire 4.4, Laravel 13.25, PHP 8.5.4.
+`Pest\Browser\Drivers\LaravelHttpServer` boots the Testbench kernel over an amphp socket and
+serves `public_path()` statically, which is exactly the path `php artisan filament:assets` copies
+registered package assets into.
 
-⚠️ **Do not let this slide into Phase 2 as an assumption.** It is the single largest unknown in
-the plan, and three of the four stories depend on it. The source application's browser tests run
-against a full Laravel application, so they are **not** evidence that the same approach works
-from a package.
+### ⚠️ Three traps found while settling it, all of which cost time
+
+1. **Provider order is load-bearing, and getting it wrong looks like a Livewire bug.**
+   `Filament\Support\SupportServiceProvider` runs
+   `$this->app->bind(DataStore::class, DataStoreOverride::class)` — a **non-shared** bind, and
+   Laravel's `bind()` unsets any existing instance. That wipes the singleton Livewire registered
+   with `app()->instance(...)`, so every `app(DataStore::class)` returns a **fresh** object:
+   `setErrorBag()` writes to one and `getErrorBag()` reads from another, returns `null`, and
+   every Filament page 500s with
+   `ViewErrorBag::put(): Argument #2 ($bag) must be of type MessageBag, null given`.
+   Real applications never see this, because Composer's package manifest registers
+   `filament/support` before `livewire/livewire` alphabetically and Livewire's `instance()`
+   lands last. **Testbench takes `getPackageProviders()` verbatim, so Livewire must be listed
+   LAST.** Recorded in `tests/BrowserTestCase.php` beside the list itself.
+
+2. **A page registered after boot 404s — and a 404 passes every accessibility assertion.**
+   Filament builds a panel's routes while booting, so `->pages([...])` in a test's `beforeEach`
+   is too late. Both axe assertions went green against the error page. A dedicated
+   `document.title` assertion now guards it. ⚠️ **A vacuous green is worse than a red**, and this
+   is the second time this project has met the shape (see R6's silent unstyled blade).
+
+3. **The axe pass is not decorative — it failed first, on real markup.** The spike probe was
+   `#09090b` on `#dc2626`, contrast **4.11** against a required 4.5. The colours were corrected
+   rather than the assertion relaxed. This is worth recording because it is the evidence that
+   `assertNoAccessibilityIssues()` in this harness is actually inspecting the served page.
+
+⚠️ **What this still does NOT settle.** Axe proves a name *exists*; it cannot see a row
+announcing its entire subtree, because that is a name. SC-011 remains unproved and is not
+inferable from anything above (`AGENTS.md` R-018).
 
 ---
 

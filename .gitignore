@@ -10,9 +10,20 @@ phpunit.xml
 phpstan.neon
 testbench.yaml
 vendor
+*.log
+.env
+.env.*
+
+# ⚠️ A library, not an application: the CI matrix runs both `prefer-lowest` and
+# `prefer-stable`, which a committed lock file would defeat.
+composer.lock
 
 # Playwright MCP scratch output (browser verification runs)
 .playwright-mcp
+
+# Browser-test artefacts written by pest-plugin-browser on failure.
+tests/Browser/Screenshots
+package-lock.json
 
 # ⚠️ resources/dist/ is deliberately NOT ignored. A Filament package cannot rely
 # on the host having a build step, so the compiled tree.css / tree.js are

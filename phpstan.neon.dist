@@ -1,0 +1,18 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    # ⚠️ AGENTS.md R-031: this level MUST NOT be lowered, and new code MUST NOT be
+    # added to a baseline to silence an error. Static analysis is load-bearing in
+    # this package rather than cosmetic — in the source application it caught ids
+    # plucked as array<mixed> being compared strictly, so a key arriving from the
+    # driver as a numeric string would never have matched its own group (research R4).
+    level: 8
+
+    paths:
+        - src
+        - config
+
+    # The bridge is analysed with Filament installed (it is a require-dev package),
+    # but it must never be *required*. AGENTS.md R-001.
+    treatPhpDocTypesAsCertain: false

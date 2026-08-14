@@ -1,0 +1,153 @@
+# ⚠️ AGENTS.md R-033: every action is pinned to a FULL commit SHA with the
+# human-readable version in a trailing comment, and every job declares an
+# explicit least-privilege `permissions:` block. A tag is a moving target; a
+# SHA is not.
+name: tests
+
+on:
+  push:
+    branches: [main, '00*-*']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }} · ${{ matrix.dependency-version }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # ⚠️ The local development platform is PHP 8.5, which this matrix does
+        # NOT cover — T008 specifies 8.3 × 8.4, and adding 8.5 here would assert
+        # combinations (notably Laravel 11 at prefer-lowest) that have not been
+        # run anywhere. Recorded as a known coverage gap rather than closed with
+        # an untested matrix row.
+        php: ['8.3', '8.4']
+        laravel: ['11', '12', '13']
+        dependency-version: [prefer-lowest, prefer-stable]
+        include:
+          - laravel: '11'
+            testbench: '^9.0'
+          - laravel: '12'
+            testbench: '^10.0'
+          - laravel: '13'
+            testbench: '^11.0'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite
+          coverage: none
+
+      - name: Constrain to the matrix Laravel version
+        run: |
+          composer require --no-update --no-interaction \
+            "illuminate/database:^${{ matrix.laravel }}.0" \
+            "illuminate/support:^${{ matrix.laravel }}.0"
+          composer require --dev --no-update --no-interaction \
+            "orchestra/testbench:${{ matrix.testbench }}"
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
+        with:
+          dependency-versions: ${{ matrix.dependency-version }}
+
+      - name: Run the suite
+        run: composer test
+
+  # ⚠️ Research R8 / AGENTS.md R-027. An architecture test over namespaces is NOT
+  # a substitute for this job: it proves nothing was *imported*, not that the
+  # package *boots*. A conditional provider registration can still fail on a
+  # container binding, a facade, or a config default that only exists when
+  # Filament is installed. Removing the package is the only check that exercises
+  # the real condition.
+  core-without-filament:
+    name: core suite · filament/filament uninstalled
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite
+          coverage: none
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
+
+      - name: Remove Filament
+        run: composer remove --dev --no-interaction filament/filament
+
+      - name: Prove Filament is gone
+        run: |
+          if [ -d vendor/filament ]; then
+            echo "vendor/filament still present — this job would prove nothing."
+            exit 1
+          fi
+
+      - name: Run the core suite
+        run: vendor/bin/pest --testsuite=core
+
+  static-analysis:
+    name: phpstan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
+
+      - name: Analyse
+        run: composer analyse
+
+  code-style:
+    name: pint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
+
+      - name: Check formatting
+        run: composer test:lint

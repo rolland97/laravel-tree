@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    ⚠️ AGENTS.md R-029 / constitution Principle I.
+
+    executionOrder="random"          tests MUST NOT depend on execution order
+    beStrictAboutOutputDuringTests   tests MUST NOT print
+    failOnWarning / failOnRisky      a warning is a failure, not a note
+    failOnEmptyTestSuite             an empty suite is not a pass
+
+    The three suites are separate because they need different things present:
+    `core` MUST pass with filament/filament UNINSTALLED (CI job core-without-filament,
+    research R8); `bridge` needs a booted panel; `browser` needs a served panel and a
+    real browser driver.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         executionOrder="random"
+         resolveDependencies="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnNotice="true"
+         failOnDeprecation="true"
+         failOnEmptyTestSuite="true"
+         beStrictAboutOutputDuringTests="true"
+         beStrictAboutTestsThatDoNotTestAnything="true"
+         cacheDirectory=".phpunit.cache">
+    <testsuites>
+        <testsuite name="core">
+            <directory>tests/Core</directory>
+        </testsuite>
+        <testsuite name="bridge">
+            <directory>tests/Bridge</directory>
+        </testsuite>
+        <testsuite name="browser">
+            <directory>tests/Browser</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_KEY" value="base64:2fl+Ktvkfl+Fuz4Qp/A75G2RTiWVA/ZoKZvp6fiiM10="/>
+        <env name="DB_CONNECTION" value="testing"/>
+    </php>
+</phpunit>
