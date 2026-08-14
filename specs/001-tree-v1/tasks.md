@@ -39,30 +39,30 @@ per [plan.md](plan.md) § Project Structure.
 
 **Purpose**: A repository that builds, lints, analyses and runs three empty suites green.
 
-- [ ] T001 [SETUP] Create `composer.json`: name `rolland97/laravel-tree`, PHP `^8.3`,
+- [X] T001 [SETUP] Create `composer.json`: name `rolland97/laravel-tree`, PHP `^8.3`,
       `illuminate/database` + `illuminate/support` `^11.0|^12.0|^13.0`,
       `staudenmeir/laravel-adjacency-list` `^1.26`. ⚠️ `filament/filament ^5.0` goes in
       `require-dev` and `suggest` **only** — never `require` (`AGENTS.md` R-001).
-- [ ] T002 [SETUP] PSR-4 autoload: `Rolland\Tree\` → `src/`, `Rolland\Tree\Tests\` → `tests/`.
-- [ ] T003 [P] [SETUP] `pint.json` (laravel preset). ⚠️ Re-cite `AGENTS.md` R-032 against this
+- [X] T002 [SETUP] PSR-4 autoload: `Rolland\Tree\` → `src/`, `Rolland\Tree\Tests\` → `tests/`.
+- [X] T003 [P] [SETUP] `pint.json` (laravel preset). ⚠️ Re-cite `AGENTS.md` R-032 against this
       file — it is currently tagged `[pending artifact]`.
-- [ ] T004 [P] [SETUP] `phpstan.neon.dist` over `src` and `config`. ⚠️ Re-cite `AGENTS.md` R-031.
-- [ ] T005 [P] [SETUP] `phpunit.xml.dist` with three suites — `core`, `bridge`, `browser` —
+- [X] T004 [P] [SETUP] `phpstan.neon.dist` over `src` and `config`. ⚠️ Re-cite `AGENTS.md` R-031.
+- [X] T005 [P] [SETUP] `phpunit.xml.dist` with three suites — `core`, `bridge`, `browser` —
       `executionOrder="random"`, `failOnWarning`, `failOnRisky`, `failOnEmptyTestSuite`,
       `beStrictAboutOutputDuringTests`. ⚠️ Re-cite `AGENTS.md` R-029.
-- [ ] T006 [SETUP] Orchestra Testbench + Pest 4 in `require-dev`; `tests/TestCase.php` and
+- [X] T006 [SETUP] Orchestra Testbench + Pest 4 in `require-dev`; `tests/TestCase.php` and
       `tests/Pest.php` applying it directory-wide.
-- [ ] T007 [SETUP] `src/TreeServiceProvider.php` — publishes config, translations and the
+- [X] T007 [SETUP] `src/TreeServiceProvider.php` — publishes config, translations and the
       migration stub; conditionally registers the bridge provider when `Filament\Panel` exists.
-- [ ] T008 [P] [SETUP] `.github/workflows/tests.yml` — matrix across PHP 8.3/8.4 × Laravel
+- [X] T008 [P] [SETUP] `.github/workflows/tests.yml` — matrix across PHP 8.3/8.4 × Laravel
       11/12/13 × `prefer-lowest`/`prefer-stable`. Actions pinned to full commit SHAs with a
       version comment, explicit least-privilege `permissions:`. ⚠️ Re-cite `AGENTS.md` R-033.
-- [ ] T009 [SETUP] **CI job `core-without-filament`**: `composer remove --dev filament/filament`
+- [X] T009 [SETUP] **CI job `core-without-filament`**: `composer remove --dev filament/filament`
       then run the `core` suite. Research R8 — an arch test is not a substitute, because it
       proves nothing was imported rather than that the package boots.
-- [ ] T010 [P] [SETUP] `.gitattributes` with `export-ignore` for `specs/`, `tests/`, `.specify/`,
+- [X] T010 [P] [SETUP] `.gitattributes` with `export-ignore` for `specs/`, `tests/`, `.specify/`,
       `.claude/`, `resources/css/`, `resources/js/`, `.github/`. Constitution Principle VI.
-- [ ] T011 [P] [SETUP] `README.md`. ⚠️ It MUST NOT instruct hosts to add an `@source` glob or run
+- [X] T011 [P] [SETUP] `README.md`. ⚠️ It MUST NOT instruct hosts to add an `@source` glob or run
       a bundler (`AGENTS.md` R-019/R-020), and MUST NOT claim "no commands at all" — state the
       qualified form from research R6.
 
@@ -74,23 +74,23 @@ per [plan.md](plan.md) § Project Structure.
 
 **⚠️ BLOCKING**: no user story starts until this phase completes.
 
-- [ ] T012 [P] [FOUND] `config/tree.php` — `parent_column`, `position_column`, `tiebreaker`
+- [X] T012 [P] [FOUND] `config/tree.php` — `parent_column`, `position_column`, `tiebreaker`
       (data-model.md § Configuration).
-- [ ] T013 [P] [FOUND] `src/Contracts/TreeNode.php` exactly as `contracts/public-api.md` states.
+- [X] T013 [P] [FOUND] `src/Contracts/TreeNode.php` exactly as `contracts/public-api.md` states.
       ⚠️ **No visibility member.** Visibility is a property of a node *and an actor*; putting it
       here invites a global default, and a default fails in the unsafe direction.
-- [ ] T014 [FOUND] `src/Concerns/IsTreeNode.php` — `treeParentId()`, `treePosition()`, recursive
+- [X] T014 [FOUND] `src/Concerns/IsTreeNode.php` — `treeParentId()`, `treePosition()`, recursive
       relationships. ⚠️ Deliberately does **not** implement `isValidTreeTarget()`: a default there
       is the package deciding, and every host that forgot would silently inherit it.
-- [ ] T015 [P] [FOUND] `src/Enums/SiblingPlacement.php` with `needsReference()`.
-- [ ] T016 [P] [FOUND] `src/Exceptions/{CycleException,InvalidTargetException,UnreachableReferenceException}.php`.
-- [ ] T017 [P] [FOUND] `src/Events/{NodeMoved,SiblingsReordered}.php` per contracts.
-- [ ] T018 [P] [FOUND] `database/migrations/add_tree_columns.php.stub`. ⚠️ A **stub**, not an
+- [X] T015 [P] [FOUND] `src/Enums/SiblingPlacement.php` with `needsReference()`.
+- [X] T016 [P] [FOUND] `src/Exceptions/{CycleException,InvalidTargetException,UnreachableReferenceException}.php`.
+- [X] T017 [P] [FOUND] `src/Events/{NodeMoved,SiblingsReordered}.php` per contracts.
+- [X] T018 [P] [FOUND] `database/migrations/add_tree_columns.php.stub`. ⚠️ A **stub**, not an
       auto-discovered migration (`AGENTS.md` R-002).
-- [ ] T019 [P] [FOUND] `lang/en/tree.php` — refusal messages and announcement templates,
+- [X] T019 [P] [FOUND] `lang/en/tree.php` — refusal messages and announcement templates,
       publishable.
-- [ ] T020 [FOUND] Fixture model `tests/Fixtures/Category.php` (mirrors the source application).
-- [ ] T021 [FOUND] Fixture model `tests/Fixtures/Page.php` — **unrelated to Category**, different
+- [X] T020 [FOUND] Fixture model `tests/Fixtures/Category.php` (mirrors the source application).
+- [X] T021 [FOUND] Fixture model `tests/Fixtures/Page.php` — **unrelated to Category**, different
       column names, different tiebreaker. Research R9: one consumer proves nothing, and a single
       fixture lets every configurable seam be accidentally hard-coded and still pass.
 
@@ -106,51 +106,51 @@ per [plan.md](plan.md) § Project Structure.
 
 ### Tests first — each watched failing (`AGENTS.md` R-023)
 
-- [ ] T022 [P] [US1] `tests/Core/ResolveSiblingPlacementTest.php`: `Before`/`After` against a
+- [X] T022 [P] [US1] `tests/Core/ResolveSiblingPlacementTest.php`: `Before`/`After` against a
       fully-visible group. ⚠️ **Name fixtures so a right and a wrong implementation differ** —
       the read tie-breaks by name, so a careless fixture passes either way (`AGENTS.md` R-025).
-- [ ] T023 [P] [US1] Partial-visibility case: a hidden sibling sits **between** two visible ones;
+- [X] T023 [P] [US1] Partial-visibility case: a hidden sibling sits **between** two visible ones;
       the resolved index must fall in the complete group. Use `Aardvark` for the hidden sibling
       (quickstart.md § SC-002).
-- [ ] T024 [P] [US1] Refusal: reference not a member of the complete group.
-- [ ] T025 [P] [US1] Refusal: reference in the group but **not** in `renderedSiblingIds`.
-- [ ] T026 [P] [US1] Refusal: reference is the node itself.
-- [ ] T027 [P] [US1] `LastChild` resolves with **no** reference supplied.
-- [ ] T028 [P] [US1] `tests/Core/MoveNodeTest.php`: cycle refusal (destination is a descendant).
-- [ ] T029 [P] [US1] Invalid-target refusal via `isValidTreeTarget()` answering false.
-- [ ] T030 [P] [US1] `tests/Core/OrderIntegrityTest.php`: after any move the affected group holds
+- [X] T024 [P] [US1] Refusal: reference not a member of the complete group.
+- [X] T025 [P] [US1] Refusal: reference in the group but **not** in `renderedSiblingIds`.
+- [X] T026 [P] [US1] Refusal: reference is the node itself.
+- [X] T027 [P] [US1] `LastChild` resolves with **no** reference supplied.
+- [X] T028 [P] [US1] `tests/Core/MoveNodeTest.php`: cycle refusal (destination is a descendant).
+- [X] T029 [P] [US1] Invalid-target refusal via `isValidTreeTarget()` answering false.
+- [X] T030 [P] [US1] `tests/Core/OrderIntegrityTest.php`: after any move the affected group holds
       a contiguous, collision-free sequence. ⚠️ **Its own `it()` case, never appended to an
       ordering assertion with `->and()`** — a chain stops at the first failure, so it could never
       be watched failing on its own (quickstart.md § SC-002/SC-003).
-- [ ] T031 [P] [US1] Atomicity: a failure mid-renumber leaves the previous order intact.
-- [ ] T032 [P] [US1] `NodeMoved` fires **exactly once** per move; `SiblingsReordered` once per
+- [X] T031 [P] [US1] Atomicity: a failure mid-renumber leaves the previous order intact.
+- [X] T032 [P] [US1] `NodeMoved` fires **exactly once** per move; `SiblingsReordered` once per
       reorder; **no** audit record is written by the package.
-- [ ] T033 [P] [US1] Numeric-string keys: ids arriving from the driver as strings still match
+- [X] T033 [P] [US1] Numeric-string keys: ids arriving from the driver as strings still match
       their own group. Research R4 — this was found by static analysis, not by a test, and a
       strict comparison would silently refuse a valid reference.
-- [ ] T034 [P] [US1] Every core test above also runs against the `Page` fixture (FR-045).
-- [ ] T035 [US1] **Watch T022–T034 fail.** Record each RED message in
+- [X] T034 [P] [US1] Every core test above also runs against the `Page` fixture (FR-045).
+- [X] T035 [US1] **Watch T022–T034 fail.** Record each RED message in
       `checklists/validation-log.md`. ⚠️ **If any test cannot be made to fail, that is the
       finding** — investigate before proceeding (`AGENTS.md` R-023).
 
 ### Implementation
 
-- [ ] T036 [US1] `src/Actions/ResolveSiblingPlacement.php` — resolve against the complete group,
+- [X] T036 [US1] `src/Actions/ResolveSiblingPlacement.php` — resolve against the complete group,
       refuse unreachable references. Cast plucked keys to `int` and compare strictly (R4).
-- [ ] T037 [US1] `src/Actions/MoveNode.php` — cycle guard, target guard, atomic renumber, fires
+- [X] T037 [US1] `src/Actions/MoveNode.php` — cycle guard, target guard, atomic renumber, fires
       `NodeMoved`. No activity-log call (research R5).
-- [ ] T038 [US1] `src/Actions/ReorderSiblings.php` — same-parent case, fires `SiblingsReordered`.
-- [ ] T039 [US1] `src/Actions/PlaceNode.php` — the composed entry point hosts call.
+- [X] T038 [US1] `src/Actions/ReorderSiblings.php` — same-parent case, fires `SiblingsReordered`.
+- [X] T039 [US1] `src/Actions/PlaceNode.php` — the composed entry point hosts call.
       ⚠️ **Named `PlaceNode`, never `DropNode`.** If this signature ever changes, **rename it**:
       a renamed method throws before dispatch, whereas named arguments are silently discarded by
       the container's method injection (`AGENTS.md` R-030).
-- [ ] T040 [US1] ⚠️ **Guard the one way the 071 defect can return.** `MoveNode` takes an integer
+- [X] T040 [US1] ⚠️ **Guard the one way the 071 defect can return.** `MoveNode` takes an integer
       position, and today only a doc comment separates it from `PlaceNode`. Add a test asserting
       the public surface offers **no** index-taking entry point, and make `MoveNode`'s role
       explicit in its own docblock. Raised by the post-design constitution re-check (plan.md).
-- [ ] T041 [US1] `renderedSiblingIds` has **no default value** anywhere in the surface. An empty
+- [X] T041 [US1] `renderedSiblingIds` has **no default value** anywhere in the surface. An empty
       default silently turns the visibility refusal into a no-op.
-- [ ] T042 [US1] Pint + PHPStan clean; all of T022–T034 green.
+- [X] T042 [US1] Pint + PHPStan clean; all of T022–T034 green.
 
 **Checkpoint**: US1 shippable. ⚠️ **Ship it before starting US2** — see below.
 
@@ -162,12 +162,12 @@ per [plan.md](plan.md) § Project Structure.
 it.** The source application's browser tests run against a full Laravel application; that is
 **not** evidence the same works from inside a package.
 
-- [ ] T043 [SPIKE] Stand up the smallest possible Testbench panel with one trivial tree page.
-- [ ] T044 [SPIKE] Drive it with a browser driver: load the page, assert one element.
-- [ ] T045 [SPIKE] Run axe against it and get a result — in **both** colour schemes.
-- [ ] T046 [SPIKE] Confirm the panel serves **compiled CSS**. ⚠️ If it does not, every styling
+- [X] T043 [SPIKE] Stand up the smallest possible Testbench panel with one trivial tree page.
+- [X] T044 [SPIKE] Drive it with a browser driver: load the page, assert one element.
+- [X] T045 [SPIKE] Run axe against it and get a result — in **both** colour schemes.
+- [X] T046 [SPIKE] Confirm the panel serves **compiled CSS**. ⚠️ If it does not, every styling
       assertion in US2–US4 is vacuous and the plan needs revising, not working around.
-- [ ] T047 [SPIKE] Record the outcome in `research.md` R10, changing its tag from `[open]` to
+- [X] T047 [SPIKE] Record the outcome in `research.md` R10, changing its tag from `[open]` to
       `[verified]` **or** to a named limitation. ⚠️ **Do not leave it `[open]` and proceed** —
       "prove fragile seams first"; discovering the harness cannot serve a panel after the page
       exists converts a spike into a rewrite.
@@ -203,7 +203,7 @@ code at all). Parallelising the stories destroys the proof.
 
 - [ ] T056 [US2] `src/Filament/Pages/TreePage.php` — `nodesByParent()`, `searchVisibleIds()`,
       `placeNode()`, `confirmPendingMove()`, `cancelPendingMove()`, and the host hooks.
-- [ ] T057 [US2] `src/Filament/FilamentTreeServiceProvider.php` — registers assets via
+- [X] T057 [US2] `src/Filament/FilamentTreeServiceProvider.php` — registers assets via
       `FilamentAsset::register([...], package: 'rolland97/laravel-tree')`.
 - [ ] T058 [US2] `resources/views/tree.blade.php` and `tree-branch.blade.php`.
       ⚠️ **Written from scratch against package classes, NOT copied.** Every visual class in the
