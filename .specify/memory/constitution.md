@@ -1,50 +1,272 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+SYNC IMPACT REPORT — 2026-08-14
+================================================================================
+Version change: (unversioned template) → 1.0.0
+Bump rationale: First ratification. Every principle is new; there is no prior
+version to be incompatible with, so MAJOR is not warranted and 1.0.0 is the
+initial adoption.
+
+Modified principles: none (initial adoption)
+
+Added sections:
+  - I.   Test-First, and a Guard That Has Never Failed Is Not a Guard
+         [replaces PRINCIPLE_1 placeholder]
+  - II.  A Move Names a Neighbour, Never an Index
+  - III. The Host Owns Privacy, Persistence and Words
+  - IV.  Accessible by Construction, and Never Claimed Without Evidence
+  - V.   Core Is Laravel; Filament Is an Optional Bridge
+  - VI.  Ship Runtime Only, Built and Committed
+  - Platform and Toolchain Constraints    [replaces SECTION_2 placeholder]
+  - Development Workflow and Quality Gates[replaces SECTION_3 placeholder]
+  - Governance
+
+Removed sections: none
+
+Templates and artifacts requiring updates:
+  ✅ .specify/templates/plan-template.md   — generic "Constitution Check" gate
+       section exists; no edit needed. Plans derive real gates from this file.
+  ✅ .specify/templates/spec-template.md   — no constitution-driven mandatory
+       sections added or removed; no edit needed.
+  ⚠ .specify/templates/tasks-template.md  — its test-task guidance says tests
+       are OPTIONAL. Principle I makes them mandatory here. Resolve per-feature
+       in tasks.md rather than editing the shared template, matching how
+       filament-tours handled the same conflict.
+  ⚠ README.md                             — does not exist yet. When written it
+       MUST NOT tell hosts to publish a stylesheet or add an @source glob;
+       Principle VI forbids requiring a host build step.
+  ⚠ AGENTS.md                             — does not exist yet. filament-tours
+       pairs its constitution with 27 citable operational rules; this repo has
+       no equivalent, so the Governance mapping table below is empty on purpose
+       rather than omitted.
+
+Deferred TODOs: none. RATIFICATION_DATE is the repository's first-commit date
+(2026-08-14), which is when the project was adopted.
+
+⚠ Provenance: Principles II and IV are not authored here. They are the recorded
+outcomes of slice 071 in the consumer application, which paid for them with
+two live ordering defects and an accessible-name defect that four correct aria-*
+assertions failed to catch. They are constitutional precisely so a later
+convenience API cannot quietly re-introduce what they forbid. Evidence:
+the consumer's keyboard-order slice/checklists/validation-log.md in that repo, and
+the consumer's package notes § Traps already paid for.
+================================================================================
+-->
+
+# laravel-tree Constitution
+
+Adjacency-list tree management for Eloquent, plus an accessible drag-and-keyboard
+Filament tree page.
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Test-First, and a Guard That Has Never Failed Is Not a Guard
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Every behaviour change MUST land with the test that would have caught its absence, and that
+test MUST be written and observed failing before the implementation exists.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+Observing the failure is not a formality and MUST NOT be skipped on the grounds that the
+assertion is obviously correct. A test whose red has never been seen MUST be treated as
+unverified, and where a guard cannot be made to fail, that fact MUST be investigated rather
+than accepted — four probes in the source application failed to redden and every one exposed
+a real defect behind the guard.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+The suite runs in random order and fails on warnings, risky tests, empty suites, and stray
+output. Tests therefore MUST NOT depend on execution order and MUST NOT print.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+Two failure modes are named because this project has already paid for both:
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+1. **A test that compares an output against the same accessor that produced it cannot see a
+   defect inside that accessor.** Assertions about ordering MUST read the stored rows, not the
+   rendered list.
+2. **A test may pass against a corrupt table.** Where a defect corrupts an ordering, fixtures
+   MUST be named so that the broken and correct outputs differ — a tie-break by name makes two
+   different implementations produce the same visible order.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+**Rationale**: A package consumed inside other people's admin panels cannot be debugged by its
+author when it breaks. In the application this package is extracted from, two of fourteen new
+guards passed against the defect as first written, and the only thing that caught it was
+asking why two were green.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### II. A Move Names a Neighbour, Never an Index
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+A request to place a node MUST identify a **reference sibling** and a **placement**
+(`Before`, `After`, `LastChild`). It MUST NOT identify a position by numeric index supplied
+from the client, and no public API MAY accept one — not as a convenience overload, not as a
+deprecated path, not behind a flag.
+
+The resolver MUST compute the index against the **complete** destination group, while the
+caller supplies the set of siblings the actor could actually see. A reference that is not a
+member of the complete group, or that the actor was never shown, MUST be refused rather than
+resolved to a best guess.
+
+**Rationale**: The browser cannot count rows it never drew. Privacy scoping and quick-search
+both remove rows from the DOM, so an index counted client-side is resolved server-side against
+a different list. In the source application this silently renumbered a partial list and left
+the remainder holding stale, colliding positions — one actor's reorder shuffled categories for
+a different actor, and no test noticed because the read tie-broke by name. Accepting a client
+index is also an authorization hole: it lets a tampered payload address a node privacy hides.
+
+### III. The Host Owns Privacy, Persistence and Words
+
+This package MUST NOT decide who may see a node, MUST NOT run a migration of its own, and MUST
+NOT assume a language.
+
+Visibility is the host's: the package owns the ordering rule and receives the visible set as an
+argument. Schema changes ship as a **stub** the host publishes and runs, never as an
+auto-discovered migration. Copy ships as publishable defaults the host may override, and the
+column names and tie-breaker are configuration, not constants.
+
+The package MUST NOT depend on an activity-log, an audit trail, or an authentication mechanism.
+Where the host needs to record that something happened, the package fires a domain event and the
+host listens.
+
+**Rationale**: Each of these is a decision the host has already made, usually differently than
+we would. The source application logs moves through `spatie/laravel-activitylog` and scopes
+visibility through its own `visibleTo()` scope; hard-coding either would force that choice onto
+every consumer and make the package unusable to anyone who chose otherwise.
+
+### IV. Accessible by Construction, and Never Claimed Without Evidence
+
+The tree MUST be operable by keyboard alone, with a **roving tabindex** so the whole tree is one
+tab stop. `role`, `tabindex` and every `aria-*` property MUST sit on the **same** node — the one
+that actually takes focus.
+
+`aria-posinset` and `aria-setsize` MUST count the **rendered** siblings, never the true group
+size. This is a privacy requirement before it is a convention: the true size discloses that a
+node exists which the actor is not permitted to see.
+
+Every interactive element MUST have an accessible **name**, and that name MUST be asserted
+directly. Asserting the other ARIA properties is not a substitute.
+
+Claims of accessibility MUST match the evidence that exists:
+
+- An automated check (axe) proves a name **exists**, never that it is sensible.
+- An accessibility-tree dump proves the **data** a screen reader receives, never that the
+  announcements work as heard sentences. It MUST NOT be recorded as if it did.
+- A criterion that has not been walked with a real screen reader MUST be reported as unproved.
+
+**Rationale**: `role="treeitem"` computes its name from its contents, so an unlabelled row
+announces its short code, its badges, every action button and — expanded — its entire subtree.
+The source application shipped exactly that while four *correct* `aria-*` assertions passed:
+every property was asserted except the one a screen reader leads with. No automated check saw a
+fault, because a name did exist.
+
+### V. Core Is Laravel; Filament Is an Optional Bridge
+
+`src/` MUST be plain Laravel and MUST NOT require `filament/filament`. It MUST remain usable
+from an API, a console command, Inertia, or a Blade application that has never heard of Filament.
+
+The Filament bridge lives under `src/Filament/`, with `filament/filament` in `require-dev` and
+`suggest` only, and its provider registered conditionally. CI MUST prove this rather than assert
+it: one job runs the core suite with `filament/filament` **uninstalled**.
+
+Genericity MUST be demonstrated by a second model in the test suite that is not a category. One
+consumer proves nothing.
+
+**Rationale**: The reusable value is the rules — cycle guards, placement resolution, sibling
+ordering — not the chrome around them. Coupling them makes the package unusable to any project
+that did not also pick Filament, and ties its release cadence to Filament's majors.
+
+### VI. Ship Runtime Only, Built and Committed
+
+A host MUST be able to install this package and see a correctly styled, working tree without
+running a bundler, editing a theme, or adding a build step.
+
+Styling MUST therefore be package-owned: blades use Filament's own components plus classes this
+package defines, shipped as a **compiled stylesheet registered as a Filament asset**. Blades MUST
+NOT contain bare host-framework utility classes, and the package MUST NOT ask a host to point a
+`@source` glob into `vendor/`. JavaScript ships the same way — a registered asset built from
+source in this repository, with the compiled artifact committed.
+
+Development tooling — specifications, agent configuration, tests, build sources — MUST be excluded
+from the distribution archive **before** the first release tag.
+
+**Rationale**: A Filament panel only compiles the utilities its own CSS references, so a blade
+living in `vendor/` renders unstyled and the failure is silent — it looks like a bug in the
+host's own CSS. The source application lost time to this twice. A tag cannot be retracted once
+published, so archive hygiene is a release blocker rather than polish.
+
+## Platform and Toolchain Constraints
+
+**Platform**: PHP 8.3+. `illuminate/database` and `illuminate/support` ^11 | ^12 | ^13, and
+`staudenmeir/laravel-adjacency-list` ^1.26. The Filament bridge targets v5. Support the full CI
+matrix rather than the local version; a change that passes only on the newest combination is a
+broken change.
+
+**Static analysis**: PHPStan over `src` and `config` at a level that MUST NOT be lowered. New code
+MUST NOT be added to the baseline to silence an error. Static analysis is load-bearing here rather
+than cosmetic: in the source application it caught a real defect where ids plucked as `array<mixed>`
+were compared strictly, so a key arriving from the driver as a numeric string would never have
+matched its own group.
+
+**Formatting**: Pint owns formatting. Code MUST NOT be hand-formatted against it.
+
+**Supply chain**: CI actions MUST be pinned to a full commit SHA with the human-readable version in
+a trailing comment, and every workflow MUST declare an explicit least-privilege `permissions:` block.
+
+**Comments**: Explain **why**, not what, and only where something is surprising.
+
+## Development Workflow and Quality Gates
+
+**Before implementation**: A feature's specification MUST be complete and its ambiguities resolved
+before planning; planning MUST be complete before tasks; tasks MUST be ordered before implementation.
+Each stage adopts its predecessor rather than re-deriving it.
+
+**A quoted constraint is a claim.** Where a specification, plan, or inherited document asserts that
+something is forbidden, fixed, or already handled, that assertion MUST be verified against the
+artifact it describes before it is used as a reason not to do work. A constraint that **forecloses**
+work deserves more verification than one that permits it.
+
+**Prove fragile seams first**: Where a feature depends on another framework's internals, that
+dependency MUST be proven end to end in a harness **before** code is built on top of it.
+
+**Styling and accessibility are proven live**: A test harness serves no compiled CSS, so no
+assertion in it can prove a focus ring is visible or a colour resolves. Anything visual MUST be
+verified in a real browser, in **both** light and dark, before it is called done.
+
+**Before completion**: The core suite (Filament uninstalled), the bridge suite, static analysis and
+formatting MUST all pass, and any built front-end artifact MUST be rebuilt and committed. A stale
+committed bundle ships broken code that every local check reports as green.
+
+**Release**: The package MUST NOT be tagged until a real consumer has been built against it
+unpublished. A published version cannot be retracted, and an API frozen without a consumer is
+frozen against guesses.
+
+**Commits**: Conventional Commits with a lowercase, descriptive subject. Say what changed and why it
+mattered. Do not commit, push, tag, or release unless asked.
+
+**Reporting**: Report outcomes faithfully. If tests fail, say so with the output. If a step was
+skipped, say that. Work that was not run MUST NOT be described as verified.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+**Authority**: This constitution supersedes other practices in this repository. Where a practice and
+a principle conflict, the principle wins and the practice is the bug.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Relationship to `AGENTS.md`**: This repository has **no `AGENTS.md` yet**. The mapping table below
+is therefore empty rather than omitted, so its absence reads as a known gap instead of an oversight.
+If one is written, it becomes the operational expression of this document — this file says *why*, it
+says *exactly what, with file references* — and the two MUST NOT contradict each other.
+
+| Principle | AGENTS.md rules |
+|---|---|
+| I…VI | none yet — `AGENTS.md` not written |
+
+**Amendment procedure**: Amendments MUST be proposed as a documented change to this file, stating the
+principle affected, the reason, and the migration for anything already built against the previous
+wording. An amendment that loosens a principle MUST say what it is trading away. Amendments take
+effect when merged, not when proposed.
+
+**Versioning policy**: Semantic versioning of the constitution itself.
+
+- **MAJOR** — a principle is removed, or redefined in a way that permits what it previously forbade.
+- **MINOR** — a principle or section is added, or existing guidance is materially expanded.
+- **PATCH** — clarification, wording, or typo fixes that do not change what is permitted.
+
+**Compliance review**: Every implementation plan MUST include a Constitution Check evaluated against
+this file, both before research and after design. A plan that cannot pass a gate MUST justify the
+violation explicitly in its Complexity Tracking section rather than omitting the gate. Substituting a
+different rule source for this file is permitted only when this file is absent or unfilled, and MUST
+be labelled as a substitution rather than reported as a pass.
+
+**Version**: 1.0.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-14
