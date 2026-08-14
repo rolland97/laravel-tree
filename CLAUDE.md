@@ -1,0 +1,102 @@
+# laravel-tree
+
+Adjacency-list tree management for Eloquent, plus an accessible drag-and-keyboard Filament v5
+tree page. Extracted from the consumer application, where every behaviour here already runs
+in production.
+
+⚠️ **This file is a pointer, not a summary.** It names where each authority lives and stops.
+Restating their contents here would create a second copy that goes stale — the failure this
+project's parent repository documents at length after an audit found nine phantom rows in a
+backlog index.
+
+---
+
+## ⚠️ Read this before the first action
+
+**The working branch is `001-tree-v1`, not `main`.** `main` holds only the scaffold commit and
+constitution **1.0.0**; `AGENTS.md` and constitution **1.0.1** are on the branch. A session that
+lands on `main` will not see the rules it is supposed to be gated by.
+
+```bash
+git switch 001-tree-v1
+```
+
+Read in this order:
+
+| # | File | What it is |
+|---|---|---|
+| 1 | `.specify/memory/constitution.md` | Six principles and **why**. Supersedes every other practice here |
+| 2 | `AGENTS.md` | The same principles as 40 operational rules, each citing its source. **Mandatory gate before `/speckit-plan`** |
+| 3 | `specs/001-tree-v1/spec.md` | 4 user stories, 48 requirements, 11 success criteria |
+| 4 | `specs/001-tree-v1/plan.md` | Phases, the constitution check, and what the post-design re-check found |
+| 5 | `specs/001-tree-v1/tasks.md` | **100 tasks, T001–T100.** This is the work |
+| — | `research.md`, `data-model.md`, `contracts/public-api.md`, `quickstart.md` | Decisions, shapes, the public surface, and the verification procedures |
+
+## Where the work is
+
+**Nothing is implemented.** Every file in this repository is a specification; there is no `src/`,
+no `composer.json`, no test suite. `T001` creates the first of those, so **`composer test` does
+not exist yet** — do not report it as failing, report that it has not been created.
+
+The next action is `/speckit-implement`, which fires a mandatory readiness gate first.
+
+⚠️ **Start at `T001` and do not skip to a story.** Phases 1 and 2 are blocking, and Phase 4 is a
+spike that blocks three of the four stories.
+
+## The four things that will cost real time if ignored
+
+Each is stated in full where it belongs; these are the pointers.
+
+1. ⚠️ **Research `R10` is `[open]` and blocks Phases 5–7.** Whether a *package* can serve a
+   Filament panel to a browser driver — and whether that panel serves **compiled CSS** — is
+   unverified. If it cannot, every styling and accessibility assertion in three stories would
+   pass vacuously. `T043`–`T047` answer it. Do not build on the assumption.
+   *→ `specs/001-tree-v1/research.md` R10.*
+2. ⚠️ **The blades are a rewrite, not a port.** Every visual class in the source application's
+   tree blades is a bare app utility, and none compile from inside `vendor/`. The package owns
+   its CSS as `ltree-` prefixed classes in a committed, compiled stylesheet. *→ `AGENTS.md`
+   R-019/R-020.*
+3. ⚠️ **A guard that has never been watched failing is not a guard**, and a guard that *cannot*
+   be made to fail is a finding to investigate rather than a pass. Every story has an explicit
+   `Watch … fail` task. *→ constitution Principle I; `AGENTS.md` R-023.*
+4. ⚠️ **No public entry point may accept a caller-supplied index.** This is the defect the whole
+   package exists to prevent, and `MoveNode` takes an integer position that looks exactly like
+   it — `T040` exists to keep that distinction enforced rather than commented.
+   *→ constitution Principle II; `contracts/public-api.md`.*
+
+## Two things that are not yours to close
+
+- **`T099` — the SC-011 screen-reader walk.** Needs a real screen reader and **working audio**.
+  If the machine does not have both, leave the task open and report SC-011 **unproved**.
+  ⚠️ **An accessibility-tree dump and an axe pass are evidence for SC-008, and explicitly not for
+  this.** Axe proves a name *exists*; the source application shipped four *correct* ARIA
+  assertions while the announced name was wrong.
+- **`T100` — the tag.** Do not tag, publish, or make the repository public. The gate is the
+  consumer application adopting this package through a local path repository with its suite
+  green, including its existing audit tests **unchanged**. Publishing is irreversible.
+
+## Conventions
+
+- **Generators**: there is no framework scaffolding here — this is a plain composer package, so
+  files are hand-written. ⚠️ Do not carry over the parent application's "scaffold via `artisan
+  make:` first" rule; it has no application in this repository.
+- **Commits**: Conventional Commits, lowercase subject, saying what changed and **why it
+  mattered**. Do not commit, push, tag or release unless asked.
+- **Reporting**: if tests fail, say so with the output; if a step was skipped, say that. Work
+  that was not run is never described as verified. *→ `AGENTS.md` R-038.*
+
+## Relationship to the consumer application
+
+That repository is the **source** of this extraction and the **first consumer** of the result.
+It is at `the consumer's checkout` (GitLab, self-hosted — use `glab`, not `gh`).
+
+- The extraction record, the five settled decisions, and the traps already paid for:
+  `the consumer's package notes` there.
+- ⚠️ **This package's spec numbering is its own.** `specs/001-tree-v1` here is unrelated to that
+  repository's `specs/NNN-`. The *adoption* half will be an app slice numbered there.
+- ⚠️ **Never run a spec-kit script for this package from a session rooted in that repository.**
+  `create-new-feature.sh` resolves the repository from the current directory, so it would create
+  the spec — and cut the branch — in the wrong repo.
+- Where this repository's documents and the behaviour running in that application disagree, **the
+  running behaviour is presumed right** and the disagreement is a finding. It has been wrong
+  before. *→ `AGENTS.md` R-040.*
