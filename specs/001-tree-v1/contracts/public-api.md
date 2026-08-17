@@ -279,6 +279,7 @@ implements or overrides:
 | `leafSlot(Model $node): ?View` | no | Non-node rows beneath a node |
 | `confirmationFor(Model $node, ?TreeNode $newParent): ?string` | no | Return a warning to require confirmation; `null` applies immediately |
 | `authorizeTreeMove(Model $node, ?TreeNode $newParent): bool` | no | ⚠️ The host's **permission** rule. Defaults to `true` |
+| `matchesSearch(Model $node, string $term): bool` | no | Which columns a quick search looks in. Defaults to the tie-breaker |
 | `treeStrings(): array` | no | Override the announcement templates |
 
 Public Livewire entry points on the page: `placeNode(...)`, `confirmPendingMove()`,
@@ -340,6 +341,37 @@ package raises. It names the node because the actor *can* see it, so the exists/
 disclosure the `unreachable_reference` wording avoids does not arise.
 
 **Migration**: none. Hosts that do not implement it keep their current behaviour.
+
+#### `matchesSearch()` — ⚠️ AMENDMENT (during implementation, 001-tree-v1), documentation only
+
+```php
+protected function matchesSearch(Model $node, string $term): bool;
+```
+
+**No signature change, and no behaviour change.** The method was already `protected` and
+therefore already overridable; the amendment is that it is now **in the member table**.
+
+**Why that is not a no-op.** This document's own first line says anything not listed here *"is
+internal and may change without a major version"*. So a host overriding `matchesSearch()` was
+taking a private dependency on an internal — and the first real consumer **must** override it:
+it searches name **or** `short_code`, and its own placeholder copy promises exactly that
+(the consumer's adoption, research F6 — requested as **PA-5**). Leaving it undocumented meant a patch
+release could silently break a host's search.
+
+The package searches `TreeColumns::tiebreaker()`, which is the one column it knows a host
+renders. A host showing a second identifier overrides this to search both.
+
+⚠️ **An override must narrow, never widen.** Every node reaching this method already came out
+of the host's own `visibleQuery()`, and the ancestor walk runs over that same set — so a
+correct override compares attributes on `$node` and does not issue its own query. One that
+queried afresh could surface a row privacy hides.
+
+⚠️ **Its guard is a MUTATION red, not an absence red** — the slot worked before the amendment,
+so nothing could fail for want of an implementation. `tests/Bridge/HostSearchSlotTest.php`
+discriminates whether the search path still *asks* the host: bypassing `matchesSearch()` inside
+`readSearchVisibleIds()` turns two of its six cases red while the rest of the suite stays green.
+
+**Migration**: none.
 
 #### Which event a placement fires — ⚠️ AMENDMENT (during implementation, 001-tree-v1)
 

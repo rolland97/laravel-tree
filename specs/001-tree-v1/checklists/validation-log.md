@@ -991,3 +991,43 @@ data*, proved by reading the live region's text — which is evidence for the
 placeholder contract and explicitly **not** for SC-011 (`AGENTS.md` R-018). ⚠️ PA-4
 in fact widens what a screen-reader walk would need to cover, since four
 announcements now say more than they did.
+
+---
+
+## PA-5 — `matchesSearch()` promoted to the documented member table
+
+**Date: 2026-08-17.** The cheapest amendment in the set, and the only one whose red
+had to be a **mutation** red rather than an absence red — the slot already worked,
+so nothing could fail for want of an implementation. What needed proving was that
+the search path still **asks** the host.
+
+**Mutation applied** — bypass the slot inside `readSearchVisibleIds()`, comparing
+the tie-breaker column inline, which is what the default `matchesSearch()` does
+anyway:
+
+```
+Tests:    2 failed, 4 passed (10 assertions)
+⨯ it honours a host that searches a column the package knows nothing about
+⨯ it keeps a match found through the host column reachable by showing its ancestors
+```
+
+The four that stayed green are the right four: the reflection check, the
+default-behaviour check, the non-vacuity check and the privacy check do not depend
+on the slot being consulted. Mutation reverted and confirmed byte-identical to
+`HEAD` before continuing.
+
+⚠️ **The fixture needed a second searchable column to make this provable at all.**
+`categories` gained a nullable `short_code`, because with `name` as both the
+tie-breaker and the only text column, a package that ignored the host's override
+would still find every row by name and pass. This is `AGENTS.md` R-025 in its
+original form: a fixture must be shaped so a correct and an incorrect
+implementation produce **different** output.
+
+Suite after: **254 passed** (248 + 6), PHPStan level 8 clean, Pint clean.
+
+⚠️ **Why a documentation-only amendment was worth a guard.** This contract's own
+first line says anything unlisted "may change without a major version" — so the
+consumer's override was a private dependency on an internal, and a patch release
+could have broken its search silently. That is the same class of defect as PA-2's
+false claim, in the opposite direction: there the document promised more than the
+code did, here it promised less than the code was relied on for.
