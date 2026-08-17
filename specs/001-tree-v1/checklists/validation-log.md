@@ -1589,3 +1589,75 @@ polled a notification bell.
 recorded above as non-discriminators rather than left to look like coverage.
 
 Suite after: **311 passed / 636 assertions**, PHPStan level 8 clean, Pint clean.
+
+## PA-15 / PA-16 — and two mechanisms that only appear once you try
+
+### ⚠️ Finding F33 — the arrows announced a move and moved nothing
+
+A held row stayed exactly where it was until Enter, while the live region said it had
+moved. **The same keystroke told two audiences different things**, and the sighted
+keyboard user was the one left guessing: no visible change, no way to tell a working
+key from a dead one.
+
+⚠️ Not visible to this package's own suite as written. Every keyboard guard here
+asserted the ANNOUNCEMENT or the STORED rows — the two things that were correct — and
+the rendered order was only ever consulted as a wait signal. A test suite can be
+complete on both ends of a behaviour and blind in the middle.
+
+### ⚠️ Finding F34 — the preview abandoned its own hold
+
+The first working version moved the row and immediately lost it. Moving a **focused**
+element fires `focusout`; `onTreeFocusOut()` reads that as the actor leaving the tree
+and abandons the hold. `moveHeld()` then carried on and announced over an emptied
+state, producing the literal announcement:
+
+```
+, position 1 of 0.
+```
+
+⚠️ **That string is the whole diagnosis** — an empty `:name`, `heldIndex` back to 0,
+`heldSiblings` empty — and it was found by dumping the controller's own state in the
+browser rather than by reading the code, which had looked correct twice. The move now
+marks its own blur and re-focuses the row afterwards, because the roving tabindex says
+which row owns the tab stop but the actor still has to BE on it to press the next key.
+
+### ⚠️ Finding F35 — the rendered order was standing in for a commit
+
+Two of this package's guards waited for the DOM to reach the expected order and then
+read the database. That worked only because the DOM could not change before the server
+answered — an assumption nothing stated and PA-15 broke. Both waits now poll the
+STORED rows, the same source their assertions read.
+
+⚠️ Worth naming as a general trap for optimistic UI: **the moment a client can show
+the outcome, the outcome stops being a signal that it happened.** A host with tests
+that wait on rendered order after a keyboard move has the same bug in its suite, and it
+reads as "the package broke my commit".
+
+### ⚠️ Finding F36 — `Tab` left a node held, and the one-tab-stop guard could not see it
+
+A host's row actions are real focusable buttons inside the tree, so Tab moves focus
+from a row to its own edit button — still inside `[role="tree"]`, so the focus-out
+abandon never fired. `KeyboardTraversalTest` counts `[data-ltree-key][tabindex="0"]`
+for its one-tab-stop claim: it counts ROWS, and both of its cases pass with a hold
+surviving Tab.
+
+⚠️ The fix abandons the hold and **does not** consume the keystroke. Swallowing Tab
+would trap a keyboard user inside the tree, which is worse than the defect.
+
+### Watched red
+
+| Mutation | Red |
+|---|---|
+| preview removed from `moveHeld()` | 3 of 8 cases (the preview, the cancel restore, and the Tab-abandon announcement) |
+| `movingPreview` guard removed | the preview case, with the `", position 1 of 0."` announcement quoted above |
+| Tab handling removed | the two Tab cases |
+
+⚠️ Two cases in that file pass vacuously **before** PA-15 and are recorded rather than
+counted: "carries the row's own subtree with it" and "puts the row back when Tab
+abandons the hold" cannot fail while nothing moves at all.
+
+⚠️ **One flake seen once**: `leaves the tree unchanged when a held move is cancelled`
+failed in a full run and passed alone and in the two full runs after. Recorded rather
+than dismissed — if CI reproduces it, the cancel path has a race worth finding.
+
+Suite after: **319 passed**, PHPStan level 8 clean, Pint clean.

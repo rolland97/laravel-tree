@@ -52,6 +52,18 @@ function ltree(strings = {}, startCollapsed = false) {
         collapsed: {},
 
         /**
+         * True while `placeHeldAt()` is rearranging the DOM (PA-15).
+         *
+         * ⚠️ This is not bookkeeping, it is the reason the preview could not simply be
+         * added. Moving a FOCUSED element fires `focusout`, `onTreeFocusOut()` reads
+         * that as the actor leaving the tree, and the hold was abandoned by the very
+         * move that was previewing it — `moveHeld()` then announced over an emptied
+         * state and said ", position 1 of 0.". The move must be able to say "this blur
+         * is mine".
+         */
+        movingPreview: false,
+
+        /**
          * Which row held DOM focus when our own morph began, if any (PA-14).
          *
          * ⚠️ `null` is the normal case AND the safe one — see restoreFocusAfterMorph().
@@ -608,6 +620,100 @@ function ltree(strings = {}, startCollapsed = false) {
          * not a safety net — it is dead code that reads like one, and keeping it would
          * mean two producers of one announcement, one of them untestable.
          */
+        /**
+         * Every element that belongs to one row: the row, its leaf slot and its
+         * children group.
+         *
+         * ⚠️ Since PA-10 removed the wrapper those are SIBLINGS of the row rather than
+         * its descendants, so anything that moves a row has to move a block. Moving
+         * the row alone would tear a subtree away from the parent it belongs to, on
+         * screen, while the server still believed the old shape.
+         */
+        blockOf(row) {
+            const block = [row]
+            let next = row.nextElementSibling
+
+            while (next && !next.hasAttribute('data-ltree-key')) {
+                block.push(next)
+                next = next.nextElementSibling
+            }
+
+            return block
+        },
+
+        /**
+         * Put the held block at `index` among its siblings — on screen only (PA-15).
+         *
+         * ⚠️ The arrow keys used to announce a new position and move NOTHING. A
+         * screen-reader user heard "position 1 of 3" while anyone watching the screen
+         * saw the row sit still until Enter: one keystroke telling two audiences
+         * different things, and no way for a sighted keyboard user to know it worked.
+         *
+         * ⚠️ `heldSiblings` is the group as it was at pick-up and it stays that way.
+         * Moving only the held block never changes the order of the others, so their
+         * captured order is still their DOM order — which is what makes this safe to
+         * repeat and exact to undo.
+         *
+         * ⚠️ NOTHING is written here. The hold reaches the server once, at the
+         * put-down (T087); a call per arrow press would file one audit row per
+         * keystroke for what the actor thinks of as one move.
+         */
+        placeHeldAt(index) {
+            const row = this.rowFor(this.heldId)
+
+            if (!row) {
+                return
+            }
+
+            const others = this.heldSiblings
+                .filter((key) => key !== this.heldId)
+                .map((key) => this.rowFor(key))
+                .filter((candidate) => candidate !== null)
+
+            if (others.length === 0) {
+                return
+            }
+
+            const block = this.blockOf(row)
+
+            // ⚠️ Moving a focused element blurs it, and the blur must not be mistaken
+            // for the actor leaving — see `movingPreview` and `onTreeFocusOut()`.
+            const hadFocus = document.activeElement === row
+            this.movingPreview = true
+
+            this.rearrange(block, others, index)
+
+            if (hadFocus) {
+                // ⚠️ Re-focused, not merely marked: the roving tabindex says which row
+                // owns the tab stop, and the actor still has to BE on it to press the
+                // next arrow key.
+                row.focus()
+            }
+
+            this.movingPreview = false
+        },
+
+        /** @internal the DOM half of placeHeldAt(), kept separate so the guard reads clearly */
+        rearrange(block, others, index) {
+            if (index >= others.length) {
+                const tail = this.blockOf(others[others.length - 1])
+                let cursor = tail[tail.length - 1]
+
+                for (const node of block) {
+                    cursor.after(node)
+                    cursor = node
+                }
+
+                return
+            }
+
+            const anchor = others[index]
+
+            for (const node of block) {
+                anchor.parentElement?.insertBefore(node, anchor)
+            }
+        },
+
         moveHeld(delta) {
             const total = this.heldSiblings.length
             const next = this.heldIndex + delta
@@ -625,6 +731,9 @@ function ltree(strings = {}, startCollapsed = false) {
             }
 
             this.heldIndex = next
+
+            // ⚠️ The screen and the announcement now say the same thing (PA-15).
+            this.placeHeldAt(next)
 
             this.say('moved', this.heldContext())
         },
@@ -673,12 +782,21 @@ function ltree(strings = {}, startCollapsed = false) {
             // abandoned move had walked it to would tell a non-sighted user it is
             // somewhere it is not.
             const context = this.heldContext({ position: this.heldOrigin + 1 })
+
+            // ⚠️ The preview is undone, not left standing (PA-15). "Cancelled, back at
+            // 3 of 3" announced over a row sitting somewhere else would be the defect
+            // PA-15 fixes, inverted — the words and the screen disagreeing again.
+            this.placeHeldAt(this.heldOrigin)
+
             this.releaseHold()
             this.say('cancelled', context)
         },
 
         abandonHold() {
             const context = this.heldContext({ position: this.heldOrigin + 1 })
+
+            this.placeHeldAt(this.heldOrigin)
+
             this.releaseHold()
             this.say('abandoned', context)
         },
@@ -711,6 +829,24 @@ function ltree(strings = {}, startCollapsed = false) {
                 if (held) {
                     event.preventDefault()
                     held()
+
+                    return
+                }
+
+                // ⚠️ Tab abandons, and does NOT consume the keystroke (PA-16).
+                //
+                // The tree is documented as one tab stop, but a host's row actions are
+                // real focusable buttons INSIDE it — so Tab moves focus from the row to
+                // its own edit button, `onTreeFocusOut()` sees focus still inside
+                // `[role="tree"]`, and the node stayed held while the actor had visibly
+                // left it. `KeyboardTraversalTest` counts rows with `tabindex="0"` for
+                // its one-tab-stop claim, so it cannot see this.
+                //
+                // ⚠️ `preventDefault()` is deliberately NOT called: swallowing Tab
+                // would trap a keyboard user inside the tree, which is worse than the
+                // defect being fixed.
+                if (event.key === 'Tab') {
+                    this.abandonHold()
                 }
 
                 return
@@ -774,6 +910,11 @@ function ltree(strings = {}, startCollapsed = false) {
          * moved on, and the next arrow press anywhere would move it.
          */
         onTreeFocusOut(event) {
+            // ⚠️ Our own move's blur, not the actor's departure (PA-15).
+            if (this.movingPreview) {
+                return
+            }
+
             if (this.heldId === null) {
                 return
             }

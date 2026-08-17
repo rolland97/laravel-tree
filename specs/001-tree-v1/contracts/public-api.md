@@ -612,6 +612,56 @@ move and then asks where focus is.
 
 **Migration**: none.
 
+#### A held node moves on screen — ⚠️ AMENDMENT (during implementation, 001-tree-v1)
+
+**What was wrong.** The arrow keys announced a new position and **moved nothing**. A
+screen-reader user heard *"position 1 of 3"*; anyone watching the screen saw the row
+sit still until Enter. One keystroke told two audiences different things, and a sighted
+keyboard user had no way to know the key had worked (the consumer's adoption T048 — **PA-15**).
+
+The held row's **block** — the row, its leaf slot and its children group — is moved
+among its siblings on each arrow press, and put back exactly on cancel or abandon.
+
+⚠️ **Still nothing is written.** The hold reaches the server once, at the put-down.
+`heldSiblings` remains the group as it was at pick-up, which is what makes the preview
+repeatable and its undo exact: moving only the held block never reorders the others.
+
+⚠️ **A block, not an element** — since PA-10 a row's children group is its SIBLING.
+Moving the row alone would tear a subtree away from its parent on screen while the
+server still believed the old shape.
+
+⚠️ **Moving a focused element blurs it, and the blur is not the actor leaving.** The
+first working preview abandoned its own hold: the move fired `focusout`,
+`onTreeFocusOut()` read that as leaving the tree, and `moveHeld()` then announced over
+an emptied state — literally *", position 1 of 0."*. The move now marks its own blur
+and re-focuses the row, because the actor still has to BE on it to press the next key.
+
+⚠️ **The rendered order is no longer proof that the server committed.** Two of this
+package's own guards used it as their wait signal and started reading the database
+before the write; they now wait on the stored rows. Any host test that waits on
+rendered order after a keyboard move must do the same.
+
+**Migration**: none, unless a host's tests waited on rendered order as a commit signal.
+
+#### `Tab` abandons a hold — ⚠️ AMENDMENT (during implementation, 001-tree-v1)
+
+**What was wrong.** `Tab` left a node held. The tree is documented as one tab stop, but
+a host's row actions are real focusable buttons **inside** it — so Tab moved focus from
+the row to its own edit button, `onTreeFocusOut()` saw focus still inside
+`[role="tree"]`, and the node stayed held while the actor had visibly left it
+(the consumer's adoption T048 — **PA-16**).
+
+⚠️ **`KeyboardTraversalTest`'s one-tab-stop claim counts ROWS** with `tabindex="0"`, so
+it cannot see this. The claim is about the tree's rows, not about everything focusable
+in them; a tree whose rows carry action buttons has more tab stops than the pattern
+implies, and that is a property of hosting actions in rows rather than a defect to fix
+by making a host's buttons unreachable.
+
+⚠️ **The keystroke is NOT consumed.** Tab keeps moving focus; swallowing it would trap
+a keyboard user inside the tree, which is worse than the defect being fixed.
+
+**Migration**: none.
+
 #### Typing a host's slots — ⚠️ AMENDMENT (during implementation, 001-tree-v1), documentation only
 
 The slots take `Model $node`, so `$node->name` is an undefined property to a host running

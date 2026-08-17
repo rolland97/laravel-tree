@@ -63,6 +63,31 @@ function settleAnnouncement(object $page): void
 
 // ── T077 — pick up ───────────────────────────────────────────────────────────
 
+/**
+ * Wait until the SERVER has actually committed, then return.
+ *
+ * ⚠️ These waits used to watch the rendered row order, and PA-15 broke that: the
+ * held row is now moved on screen the moment an arrow key is pressed, so the DOM
+ * reaches the expected order BEFORE the put-down's round trip and the wait returned
+ * immediately. Two guards then read the database ahead of the write and reported a
+ * working commit as broken.
+ *
+ * ⚠️ The signal has to be something only the server can produce. This polls the
+ * STORED rows — the same source every assertion in this file reads (R-024) — with a
+ * client-side sleep between attempts, and gives up rather than looping forever so a
+ * genuine failure still fails.
+ */
+function waitForStoredOrder(object $page, ?int $parentKey, callable $satisfied): void
+{
+    for ($attempt = 0; $attempt < 40; $attempt++) {
+        if ($satisfied()) {
+            return;
+        }
+
+        $page->script('(async () => { await new Promise(r => setTimeout(r, 50)); return true; })()');
+    }
+}
+
 it('announces a pick-up', function () {
     $page = visit('/admin/category-tree');
     focusRowByKey($page, $this->charlie->id);
@@ -136,15 +161,11 @@ it('commits the move when the node is put down', function () {
     settleAnnouncement($page);
     sendKey($page, 'Enter');
 
-    $page->script(
-        '(async () => { for (let i = 0; i < 80; i++) {'
-        ." const rows = Array.from(document.querySelectorAll('[data-ltree-parent=\"{$this->root->id}\"]'));"
-        ." if (rows[0]?.dataset.ltreeKey === '{$this->charlie->id}') return true;"
-        .' await new Promise(r => setTimeout(r, 25)); } return false; })()'
-    );
+    $expected = [$this->charlie->id, $this->delta->id, $this->bravo->id];
 
-    expect(Stored::order($this->root->id))
-        ->toBe([$this->charlie->id, $this->delta->id, $this->bravo->id]);
+    waitForStoredOrder($page, $this->root->id, fn (): bool => Stored::order($this->root->id) === $expected);
+
+    expect(Stored::order($this->root->id))->toBe($expected);
 });
 
 it('announces completion when the node is put down', function () {
@@ -203,12 +224,7 @@ it('fires exactly one reorder event however many keystrokes produced it', functi
     settleAnnouncement($page);
     sendKey($page, 'Enter');
 
-    $page->script(
-        '(async () => { for (let i = 0; i < 80; i++) {'
-        ." const rows = Array.from(document.querySelectorAll('[data-ltree-parent=\"{$this->root->id}\"]'));"
-        ." if (rows[0]?.dataset.ltreeKey === '{$this->bravo->id}') return true;"
-        .' await new Promise(r => setTimeout(r, 25)); } return false; })()'
-    );
+    waitForStoredOrder($page, $this->root->id, fn (): bool => MoveCounter::$reordered > 0);
 
     expect(MoveCounter::$reordered)->toBe(1);
     expect(MoveCounter::$moved)->toBe(0);
