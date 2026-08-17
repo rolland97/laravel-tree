@@ -801,3 +801,49 @@ with no Laravel axis. 8.3 is the floor every runtime dependency declares
 
 **Both floors are now proven locally**: prefer-lowest 215 passed, prefer-stable
 215 passed, core-without-filament 101 passed.
+
+---
+
+## ⚠️ Finding F16 — CI's first run failed all six matrix legs
+
+The branch was pushed and CI executed for the very first time.
+
+| Job | Result |
+|---|---|
+| phpstan | ✅ |
+| pint | ✅ |
+| core suite · filament uninstalled | ✅ |
+| all 6 × PHP × dependency-version legs | ❌ **failed** |
+
+```
+Pest\Browser\Exceptions\PlaywrightNotInstalledException
+Playwright is not installed. Please run [npm install playwright && npx playwright install]
+```
+
+The workflow ran `composer test`, which includes the **browser** suite, on runners
+with no Node and no Chromium. ⚠️ **`CLAUDE.md` documents this requirement in so
+many words** — *"the browser suite needs Playwright"* — and the workflow I wrote
+never honoured it. The requirement was written down and not followed, by the same
+author, in the same repository.
+
+**Fixed by splitting the browser suite into its own job** rather than installing
+Chromium six times to exercise the same PHP over HTTP:
+
+- the matrix legs run `--testsuite=core,bridge` (**140** tests);
+- a dedicated `browser` job installs Node and Chromium and runs
+  `--testsuite=browser` (**75** tests).
+
+The union is `composer test` (**215**), which is still what a developer runs
+locally. Every command was verified locally before pushing again, rather than
+guessing twice.
+
+The browser job also gates the **committed bundle**: it runs `npm run build` and
+fails if `resources/dist/` changes, because a stale committed bundle ships broken
+code that every other check reports as green (Principle VI). ⚠️ That gate was
+itself verified failable — appending a rule to `resources/css/tree.css` makes it
+fire.
+
+**The lesson is the same one F15 taught, one commit earlier and evidently not yet
+learnt**: three reports had described this CI as correct without it ever having
+run. Two consecutive findings now have the same root — a claim about an automated
+check that the automated check had never made.
