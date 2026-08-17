@@ -266,6 +266,18 @@ function ltree(strings = {}) {
             return this.collapsed[key] !== true
         },
 
+        /**
+         * Toggle a branch from the POINTER.
+         *
+         * ⚠️ Reassigns `collapsed` rather than mutating it. Alpine tracks the
+         * object, and an in-place `this.collapsed[key] = x` on a plain object
+         * property does not always re-run the bindings that read it — the branch
+         * would collapse in state and stay open on screen.
+         */
+        toggleBranch(key) {
+            this.collapsed = { ...this.collapsed, [key]: this.isExpanded(key) }
+        },
+
         childrenContainerOf(key) {
             return this.$el.querySelector(`[data-ltree-children-of="${key}"]`)
         },

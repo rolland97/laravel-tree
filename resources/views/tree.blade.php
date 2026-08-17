@@ -45,7 +45,10 @@
         </div>
 
         @php($grouped = $this->nodesByParent())
-        @php($roots = $grouped[''] ?? [])
+        {{-- ⚠️ NOT $grouped[''] — see TreePage::treeDisplayRoots(). A node whose
+             parent the host's query did not return must render at the root of what
+             the actor CAN see, or it vanishes entirely. --}}
+        @php($roots = $this->treeDisplayRoots())
 
         @if (count($roots) === 0)
             <p class="ltree-empty">{{ __('tree::tree.empty') }}</p>
@@ -60,8 +63,6 @@
                         'node' => $node,
                         'grouped' => $grouped,
                         'level' => 1,
-                        'position' => $loop->iteration,
-                        'setSize' => count($roots),
                     ])
                 @endforeach
             </div>

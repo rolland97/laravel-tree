@@ -136,6 +136,104 @@ abstract class TreePage extends Page
     }
 
     /**
+     * The rows shown at the top level of what THIS actor can see.
+     *
+     * ⚠️ Real roots, followed by ORPHANS — nodes the host's query returned whose
+     * PARENT it did not. spec.md § Edge Cases requires an orphan to "render at the
+     * root of what the actor can see without implying its true parent".
+     *
+     * Without this an orphan was filed under its parent's key, the render walked
+     * only from the root group, and the node vanished completely: invisible to an
+     * actor who was explicitly permitted to see it, and therefore unreorderable.
+     *
+     * Real roots come first because they are the actor's genuine top level;
+     * orphan groups follow in ascending parent key. The order matters only in that
+     * it must be DETERMINISTIC — an arbitrary order here would make the read order
+     * depend on hash iteration.
+     *
+     * @return list<Model&TreeNode>
+     */
+    public function treeDisplayRoots(): array
+    {
+        $grouped = $this->nodesByParent();
+        $visible = $this->visibleKeys();
+
+        $roots = $grouped[''] ?? [];
+
+        $orphanKeys = [];
+
+        foreach (array_keys($grouped) as $parentKey) {
+            if ($parentKey === '' || in_array(SiblingGroup::key($parentKey), $visible, strict: true)) {
+                continue;
+            }
+
+            $orphanKeys[] = $parentKey;
+        }
+
+        sort($orphanKeys);
+
+        foreach ($orphanKeys as $parentKey) {
+            $roots = [...$roots, ...$grouped[$parentKey]];
+        }
+
+        return array_values($roots);
+    }
+
+    /**
+     * The parent key this node is grouped under — `''` for a real root.
+     *
+     * ⚠️ An orphan keeps its TRUE parent key here even though it displays at the
+     * root. The display promotes it; the placement rule must not. It is still a
+     * member of its real group, and its order is still resolved inside that group.
+     */
+    public function treeParentKeyFor(Model $node): string
+    {
+        $parent = $node->getAttribute(TreeColumns::parent());
+
+        return $parent === null ? '' : (string) $parent;
+    }
+
+    /**
+     * ⚠️ Counts the RENDERED members of the node's REAL group, never the display
+     * list it was promoted into. Reporting an orphan as "1 of 3" alongside the real
+     * roots would imply it has no parent — a different disclosure from the one
+     * FR-037 prevents, but a disclosure all the same.
+     */
+    public function treeSetSizeFor(Model $node): int
+    {
+        return count($this->nodesByParent()[$this->treeParentKeyFor($node)] ?? []);
+    }
+
+    public function treePositionFor(Model $node): int
+    {
+        $group = $this->nodesByParent()[$this->treeParentKeyFor($node)] ?? [];
+
+        foreach (array_values($group) as $index => $sibling) {
+            if (SiblingGroup::key($sibling->getKey()) === SiblingGroup::key($node->getKey())) {
+                return $index + 1;
+            }
+        }
+
+        return 1;
+    }
+
+    /**
+     * @return list<int|string>
+     */
+    protected function visibleKeys(): array
+    {
+        $keys = [];
+
+        foreach ($this->nodesByParent() as $group) {
+            foreach ($group as $node) {
+                $keys[] = SiblingGroup::key($node->getKey());
+            }
+        }
+
+        return $keys;
+    }
+
+    /**
      * The ids a quick search leaves displayed, or `null` when there is no search.
      *
      * ⚠️ Search NARROWS what is displayed; it must never WIDEN what is visible.

@@ -4,6 +4,12 @@
     $hasChildren = count($children) > 0;
     $rowId = 'ltree-row-'.$key;
     $nameId = 'ltree-name-'.$key;
+
+    // ⚠️ Taken from the node's OWN group, not from the loop that rendered it. An
+    // orphan displays among the roots but is still counted among its real
+    // siblings — see TreePage::treeSetSizeFor().
+    $position = $this->treePositionFor($node);
+    $setSize = $this->treeSetSizeFor($node);
 @endphp
 
 <div class="ltree-branch" data-ltree-branch="{{ $key }}">
@@ -61,9 +67,26 @@
                 already announces its expanded state, and a control duplicating a
                 state already announced is noise (spec FR-038, AGENTS.md R-016).
             --}}
+            {{--
+                ⚠️ A POINTER affordance, and deliberately invisible to assistive
+                technology.
+
+                FR-024 and US2 acceptance 1 require branches to be collapsible by a
+                mouse user; without this the only way to collapse anything was
+                ArrowLeft, which is US3's keyboard path. Hiding this control from
+                assistive technology is correct precisely BECAUSE that keyboard
+                path exists and is better: the row already announces
+                `aria-expanded`, and a labelled chevron would announce the same
+                state a second time (spec FR-038, AGENTS.md R-016).
+
+                The click sits on the chevron alone. On the row it would make every
+                row action and every drag start also toggle the branch.
+            --}}
             <span
                 class="ltree-chevron"
+                data-ltree-chevron
                 x-bind:class="isExpanded(@js((string) $key)) ? 'ltree-chevron-open' : ''"
+                x-on:click.stop="toggleBranch(@js((string) $key))"
                 aria-hidden="true"
                 tabindex="-1"
             >›</span>
@@ -102,8 +125,6 @@
                     'node' => $child,
                     'grouped' => $grouped,
                     'level' => $level + 1,
-                    'position' => $loop->iteration,
-                    'setSize' => count($children),
                 ])
             @endforeach
         </div>

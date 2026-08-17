@@ -358,3 +358,60 @@ source application shipped this exact tree with four *correct* ARIA assertions
 passing while the announced name was wrong (`AGENTS.md` R-018).
 
 T099 stays **open**.
+
+---
+
+## T097 critique — two Critical findings, fixed
+
+The critique found two requirement gaps that **181 passing tests did not**, both
+because nothing tested the requirement at all. This is why tasks.md says to run it
+before the branch is finished rather than only at the end.
+
+### C1 — orphan nodes vanished entirely
+
+`nodesByParent()` filed every node under its raw parent key and the blade walked
+only from the root group. A node whose PARENT the host's query did not return was
+filed under an unreachable key and never rendered.
+
+Evidence before the fix:
+
+```
+group keys: [1,""]
+roots: ["NormalRoot"]
+orphan rendered in HTML: false
+```
+
+spec.md § Edge Cases requires the opposite: *"It must render at the root of what
+the actor can see without implying its true parent."* A node the actor **was**
+permitted to see was invisible, and therefore unreorderable.
+
+Fixed by `treeDisplayRoots()`, which appends orphan groups after the real roots.
+⚠️ The display promotes them; the placement rule does **not** — an orphan keeps
+its true parent key and is still counted among its real rendered siblings.
+Reporting it as "1 of 3" beside the real roots would imply it has no parent, which
+is its own disclosure.
+
+**Mutation**: reverting the blade to `$grouped['']` reddens 2 guards.
+
+### C2 — no pointer expand/collapse; FR-024 shipped unmet
+
+`grep` found no click handler in any blade or in `tree.js`. Collapse existed only
+via ArrowLeft/ArrowRight, added in **US3** — so FR-024 and US2 acceptance 1, which
+belong to **US2**, were unmet, and a mouse-only user could not collapse anything.
+
+Fixed with a click on the chevron alone. ⚠️ It stays `aria-hidden="true"` and
+`tabindex="-1"`: the row already announces `aria-expanded`, and a labelled chevron
+would announce the same state twice (FR-038, R-016). Hiding a pointer affordance
+from assistive technology is right precisely because the keyboard path exists and
+is better. The click is on the chevron, not the row — on the row it would make
+every row action and every drag start also toggle the branch.
+
+**Mutation**: removing the click handler reddens 2 guards.
+
+### What this says about the earlier task marks
+
+T048–T062 were marked complete before this critique ran, and C2 shows that mark
+was wrong: US2 had an unmet functional requirement. The suite was green because
+the requirement had no test, not because it was satisfied. **A green suite is
+evidence about the tests that exist, and nothing at all about the ones that do
+not.**
