@@ -44,8 +44,6 @@ use Rolland\Tree\Support\TreeColumns;
  */
 trait InteractsWithTree
 {
-    protected string $view = 'tree::tree';
-
     public string $treeSearch = '';
 
     /**
@@ -76,6 +74,34 @@ trait InteractsWithTree
     protected ?array $treeSearchCache = null;
 
     protected bool $treeSearchCacheResolved = false;
+
+    /**
+     * The package's tree view.
+     *
+     * ⚠️ **A METHOD, not a `$view` property, and this is not a style choice — it is
+     * a fatal-error fix found by CI.** Filament declares `protected string $view` on
+     * its page classes, and a trait property whose definition differs from one a
+     * PARENT declares is a **fatal composition error on PHP 8.3 and 8.4**:
+     *
+     * ```
+     * Filament\Pages\Page and InteractsWithTree define the same property ($view)
+     * in the composition of TreePage. However, the definition differs and is
+     * considered incompatible.
+     * ```
+     *
+     * PHP 8.5 permits it, which is exactly how this shipped: the rule was probed on
+     * one version and generalised. Five of ten CI jobs died at COMPILE time.
+     *
+     * `BasePage::render()` calls `view($this->getView(), ...)`, so overriding the
+     * accessor reaches the same seam — and a trait METHOD beats an INHERITED one on
+     * every supported version. Guarded generally by
+     * `tests/Bridge/TraitCompositionTest.php`, which fails if this trait ever
+     * declares any property a Filament page ancestor also declares.
+     */
+    public function getView(): string
+    {
+        return 'tree::tree';
+    }
 
     /**
      * The host's privacy scope. Required.

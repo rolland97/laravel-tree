@@ -896,7 +896,7 @@ confirmed the two rules the amendment depends on:
 | Composition | Result |
 |---|---|
 | trait property vs **class's own** property, different default | ⛔ fatal |
-| trait property vs **parent's** property, different default | ✅ allowed — so `$view = 'tree::tree'` moves safely |
+| trait property vs **parent's** property, different default | ⛔ **THIS ROW WAS WRONG — see F21.** Allowed on PHP 8.5 only; fatal on 8.3 and 8.4 |
 | trait method vs **inherited** method | ✅ trait wins — so `getHeaderActions()` reaches the host slot |
 
 `$model` and `treeModel()` therefore stay on `TreePage`, reached by inheritance.
@@ -1031,3 +1031,90 @@ consumer's override was a private dependency on an internal, and a patch release
 could have broken its search silently. That is the same class of defect as PA-2's
 false claim, in the opposite direction: there the document promised more than the
 code did, here it promised less than the code was relied on for.
+
+---
+
+## ⚠️ Finding F21 — the first CI run of PA-1…PA-5 failed 5 of 10 jobs, at COMPILE time
+
+**Date: 2026-08-17.** Run `32003369469`, the first push of the amendment set.
+
+```
+success  phpstan                                    failure  browser suite · playwright
+success  pint                                       failure  PHP 8.4 · prefer-stable
+success  PHP 8.5 · prefer-stable                    failure  PHP 8.4 · prefer-lowest
+success  PHP 8.5 · prefer-lowest                    failure  PHP 8.3 · prefer-stable
+success  core suite · filament uninstalled          failure  PHP 8.3 · prefer-lowest
+```
+
+One root cause behind all five:
+
+```
+PHP Fatal error: Filament\Pages\Page and Rolland\Tree\Filament\Concerns\InteractsWithTree
+define the same property ($view) in the composition of
+Rolland\Tree\Filament\Pages\TreePage. However, the definition differs and is
+considered incompatible.
+```
+
+### What went wrong, precisely
+
+F17 above records a probe of PHP's trait-composition rules, run while extracting
+the trait. It got the `$model` case right. It got this row **wrong**:
+
+> trait property vs **parent's** property, different default → ✅ allowed
+
+That is true on **PHP 8.5**, which is the only PHP on this machine. On **8.3 and
+8.4 it is a fatal error**, and `composer.json` supports all three. The probe was
+run once, on one version, and its result was written down as *a rule of the
+language*.
+
+⚠️ **This is F15/F16's lesson for the third time**: a claim about behaviour that
+the check capable of contradicting it had never been run against. The two earlier
+instances were about CI never having executed; this one is about CI never having
+executed **the versions the matrix exists to cover**. The local suite — 254 tests,
+PHPStan level 8, Pint — is incapable of seeing it, because a composition error is
+raised when the class is *compiled*, so no assertion inside it ever runs.
+
+⚠️ **It also means PA-1 as first committed was broken on two of three supported PHP
+versions**, and every local signal was green. `962042f` through `e34a53d` should be
+read with that in mind.
+
+### The fix
+
+`BasePage::render()` calls `view($this->getView(), ...)` and `getView()` returns
+`$this->view`. So the trait now overrides the **method** and declares no property:
+
+```php
+public function getView(): string
+{
+    return 'tree::tree';
+}
+```
+
+A trait METHOD beats an INHERITED one on every supported version — that half of the
+original probe was correct and is unaffected.
+
+### The guard, and why it is general
+
+`tests/Bridge/TraitCompositionTest.php` does **not** check `$view`. It asserts the
+trait declares **no property that any Filament page ancestor declares**, by
+reflecting over `BasePage`, `Pages\Page` and `Resources\Pages\Page`. A property
+added to this trait in future is therefore caught on **any** PHP version, rather
+than on two thirds of the matrix.
+
+**Mutation red observed locally on PHP 8.5** — the version that permits the
+construct — before the fix:
+
+```
+⨯ it declares no trait property that a Filament page ancestor also declares
+  trait property collides with a Filament page property: view
+⨯ it reaches the tree view through getView(), which is a method and composes safely
+Tests: 2 failed, 3 passed
+```
+
+⚠️ That is the point of shaping the guard as a reflection check rather than a
+behavioural one: **it reproduces a fatal that this machine's PHP cannot raise.**
+A behavioural test would have passed here and failed only in CI.
+
+Suite after: **259 passed** (254 + 5), PHPStan level 8 clean, Pint clean. ⚠️ The
+8.3/8.4 verdict is CI's to give, not this machine's — recorded as unproven locally
+until that run reports.
