@@ -197,9 +197,77 @@ UnreachableReferenceException  extends DomainException
 
 ## Filament bridge — present only when Filament is installed
 
+### `Rolland\Tree\Filament\Concerns\InteractsWithTree`
+
+```php
+trait InteractsWithTree
+{
+    // The whole tree body: the host slots below, the reads the view calls, and
+    // the Livewire entry points placeNode() / confirmPendingMove() / cancelPendingMove().
+}
+```
+
+Usable on **any** Filament page class:
+
+```php
+class TreeVendorCategories extends Filament\Resources\Pages\Page
+{
+    use Rolland\Tree\Filament\Concerns\InteractsWithTree;
+
+    protected function visibleQuery(): Builder { /* the host's privacy scope */ }
+}
+```
+
+⚠️ **AMENDMENT (during implementation, 001-tree-v1).** The tree was reachable only by
+extending `TreePage`, and that made an entire class of host **impossible**. Requested by
+the first real consumer (the consumer's adoption, research F1) as **PA-1**.
+
+**What was impossible.** `route()` is declared **only** on
+`Filament\Resources\Pages\Page`. A tree registered as a resource's index page —
+`VendorCategoryResource::getPages()` → `'index' => TreeVendorCategories::route('/')` — must
+extend that class, and PHP has no second inheritance slot with which to also reach
+`TreePage`. Forcing the host to choose meant giving up the resource's index URL,
+`getUrl()`, the breadcrumb and the sub-navigation, or giving up the package.
+
+⚠️ **F1's stated mechanism is wrong; its conclusion is not.** F1 records the two page
+classes as *"siblings under `BasePage`"*. They are not — `Resources\Pages\Page extends
+Filament\Pages\Page`, so the resource page is a **descendant** of the panel page. The
+conclusion survives unchanged, because inheritance runs one way: `route()` lives on the
+child, and extending `TreePage` lands a host on the parent, where it does not exist.
+Recorded rather than repeated, per `AGENTS.md` R-037.
+
+**Why a trait rather than a second base class.** Two base classes would be two copies of
+the placement contract, and the resource-page one would be the copy that silently fell
+behind. `TreePage` is now a thin class over this trait, so both hosts run the same body.
+
+⚠️ **`static $model` did NOT move into the trait, and this is load-bearing.** A trait
+property and a using class's own property with **different initial values** is a fatal
+composition error:
+
+```
+C and T define the same property ($model) in the composition of C.
+However, the definition differs and is considered incompatible.
+```
+
+A trait carrying `protected static string $model` would therefore refuse to compose with
+every host that names its model — which is all of them. `$model` and `treeModel()` stay on
+`TreePage`, where they are reached by *inheritance*, which permits a differing default.
+Nothing in the trait reads them. **A host using the trait directly declares its model
+however it likes and does not get `treeModel()`.**
+
+⚠️ **`getHeaderActions()` collides, and the collision is checked rather than assumed.** It
+is `protected` on `Filament\Pages\Concerns\InteractsWithHeaderActions`, which both base
+pages use, and also on this trait. PHP resolves a **trait** method ahead of an **inherited**
+one, so the trait wins and the host's `headerActions()` slot is reached — asserted in
+`tests/Bridge/InteractsWithTreeTest.php`, because a wrong answer here surfaces to a host as
+a silently missing toolbar rather than as an error.
+
+**Migration**: none. `TreePage` keeps its name, its members and its behaviour.
+
 ### `Rolland\Tree\Filament\Pages\TreePage`
 
-Abstract. A host extends it and implements or overrides:
+Abstract, and since PA-1 a thin class over `InteractsWithTree`. A host extends it and
+implements or overrides:
 
 | Member | Required? | Purpose |
 |---|---|---|

@@ -66,6 +66,10 @@ final class TestPanelProvider extends PanelProvider
             // a 404 — and a 404 page passes `assertNoAccessibilityIssues()`
             // vacuously, which is how this nearly read as a green spike.
             ->pages([SpikePage::class, CategoryTreePage::class])
+            // ⚠️ The PA-1 host: a tree on a RESOURCE INDEX page. Registered here
+            // for the same reason the pages are — Filament builds a panel's routes
+            // while booting, so anything added afterwards resolves to a 404.
+            ->resources([CategoryResource::class])
             // ⚠️ No `AuthenticateSession` and no `->login()`. This panel has no
             // guard configured, and the spike's question is about serving and
             // styling, not about authentication — a panel that 500s inside the
