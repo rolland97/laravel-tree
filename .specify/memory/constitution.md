@@ -195,12 +195,21 @@ published, so archive hygiene is a release blocker rather than polish.
 
 ## Platform and Toolchain Constraints
 
-**Platform**: PHP 8.3+. `illuminate/database` and `illuminate/support` ^12 | ^13, and
-`staudenmeir/laravel-adjacency-list` ^1.24. The Filament bridge targets v5. Support the full CI
+**Platform**: PHP 8.3+. `illuminate/database` and `illuminate/support` ^13, and
+`staudenmeir/laravel-adjacency-list` ^1.26. The Filament bridge targets v5. Support the full CI
 matrix rather than the local version; a change that passes only on the newest combination is a
 broken change.
 
-⚠️ **Laravel 11 was dropped in 1.1.0, and this is not a loosening.** Every one of the 108
+⚠️ **Laravel 12 was dropped in 1.2.0, and Laravel 11 in 1.1.0. Neither is a loosening.**
+
+Laravel 12 **works** — verified at 12.61.1 with Filament 5.6.5 — and was dropped anyway,
+because it has **no consumer**. The one consumer this package exists for is on `^13.17`, and
+`^12.0` would advertise ~60 patch releases that Composer's audit refuses. The asymmetry decides
+it: widening support later is a MINOR, non-breaking change, while narrowing it after publication
+is breaking. Support starts narrow and grows when a host actually needs it — the same reasoning
+that keeps the package untagged until a real consumer has adopted it.
+
+⚠️ **Laravel 11:** Every one of the 108
 published `laravel/framework` 11.x releases carries unresolved security advisories —
 `PKSA-mdq4-51ck-6kdq` alone spans `>=11.0.0,<12.0.0` with no patched release in the line — so
 Composer's default `block-insecure` audit refuses to install any of them. The version claim could
@@ -298,7 +307,39 @@ violation explicitly in its Complexity Tracking section rather than omitting the
 different rule source for this file is permitted only when this file is absent or unfilled, and MUST
 be labelled as a substitution rather than reported as a pass.
 
-**Version**: 1.1.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-17
+**Version**: 1.2.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-17
+
+<!--
+AMENDMENT 1.1.0 → 1.2.0 (2026-08-17)
+MINOR. § Platform and Toolchain narrows again: illuminate ^13 only, and
+adjacency-list back to ^1.26 (which requires illuminate ^13 and is therefore the
+correct pin once Laravel 12 is gone — the ORIGINAL spec value, correct for a
+reason the spec had not established).
+
+PRINCIPLE AFFECTED: none. Platform section, not a principle.
+
+REASON: Laravel 12 is not broken — it was verified working at 12.61.1 with
+Filament 5.6.5, full suite green. It was dropped because it has NO CONSUMER. The
+consumer application, the first and only consumer and the release gate, is on
+laravel/framework ^13.17. Supporting a version nobody uses costs six CI legs and
+constrains every future change to an older API surface. `^12.0` was also not
+honest: everything below 12.61.1 is advisory-blocked.
+
+WHAT IS TRADED AWAY: installability on Laravel 12 for hosts who do not exist yet.
+Stated explicitly per the amendment procedure. The trade is defensible only
+because of an asymmetry — widening a version range later is MINOR and
+non-breaking, narrowing it after publication is breaking — and nothing is
+published.
+
+MIGRATION: none. No consumer, nothing tagged.
+
+⚠️ DISCOVERED BY BEING ASKED. Nobody derived this; the question "why are we using
+Laravel 12?" was put directly, and the honest answer was that the range had been
+INHERITED from the spec and narrowed only where it was provably uninstallable —
+which is not the same as justifying what remained. Recorded because the failure
+mode is general: a constraint can survive every review by never being the thing
+under review.
+-->
 
 <!--
 AMENDMENT 1.0.1 → 1.1.0 (2026-08-17)

@@ -47,7 +47,7 @@ turn that refusal into a no-op. If you genuinely render everything, pass everyth
 | | |
 |---|---|
 | PHP | 8.3+ |
-| Laravel | 12 or 13 |
+| Laravel | 13 |
 | Filament | 5.x — **optional**, bridge only |
 
 ## Install

@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   test:
-    name: PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }} · ${{ matrix.dependency-version }}
+    name: PHP ${{ matrix.php }} · ${{ matrix.dependency-version }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -26,32 +26,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # PHP 8.5 is the platform this package is developed on, and both Laravel
-        # legs were run against it locally before being added here rather than
-        # asserted (core 92 / bridge 39 on Laravel 12, full suite on Laravel 13).
+        # PHP 8.5 is the platform this package is developed on, and 8.3 is the
+        # floor every runtime dependency declares (laravel/framework 13.x,
+        # adjacency-list 1.26 and testbench 11 all require ^8.3).
         php: ['8.3', '8.4', '8.5']
 
-        # ⚠️ Laravel 11 is NOT in this matrix, and its absence is deliberate.
+        # ⚠️ Laravel 13 ONLY, and both older majors are absent deliberately.
         #
-        # Every one of the 108 published 11.x releases is affected by unresolved
-        # security advisories — PKSA-mdq4-51ck-6kdq alone spans >=11.0.0,<12.0.0
-        # with no patched release in that line. Composer's default `block-insecure`
-        # audit therefore refuses to install laravel/framework 11.x AT ALL, so
-        # these legs could never have gone green and no host could adopt the
-        # package on Laravel 11 anyway.
+        # Laravel 11: every one of its 108 published releases carries unresolved
+        # security advisories, so Composer's default audit refuses to install any
+        # of them. No host could adopt the package there.
         #
-        # ⚠️ plan.md and the constitution said ^11 | ^12 | ^13 when this was
-        # written. Both have since been amended (constitution 1.1.0) so every
-        # document now agrees with what actually installs — advertising support
-        # for a framework version that cannot be installed securely is a claim,
-        # not a capability.
-        laravel: ['12', '13']
+        # Laravel 12: it WORKS — verified locally at 12.61.1 with Filament 5.6.5
+        # — but it has no consumer. The one consumer this package exists for, the
+        # consumer application, is on ^13.17, and `^12.0` would advertise ~60
+        # patch releases that are advisory-blocked. Widening support later is a
+        # MINOR, non-breaking change; narrowing it after publication is breaking.
+        # So the range starts narrow and grows when a host actually needs it.
         dependency-version: [prefer-lowest, prefer-stable]
-        include:
-          - laravel: '12'
-            testbench: '^10.0'
-          - laravel: '13'
-            testbench: '^11.0'
 
     steps:
       - name: Checkout
@@ -63,14 +55,6 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite
           coverage: none
-
-      - name: Constrain to the matrix Laravel version
-        run: |
-          composer require --no-update --no-interaction \
-            "illuminate/database:^${{ matrix.laravel }}.0" \
-            "illuminate/support:^${{ matrix.laravel }}.0"
-          composer require --dev --no-update --no-interaction \
-            "orchestra/testbench:${{ matrix.testbench }}"
 
       - name: Install dependencies
         uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0

@@ -735,3 +735,69 @@ status. `specs/` is **`export-ignore`d**, so that path does not exist in the
 distributed package: a broken link for every reader who installed it. The SC-011
 status is now stated inline, including that the walk has **not** happened and is
 reported unproved rather than inferred from the automated checks.
+
+---
+
+## Laravel 12 dropped — constitution 1.2.0, and the first CI leg ever run
+
+### ⚠️ Finding F14 — a supported version nobody had ever justified
+
+Asked directly: *"why are we using Laravel 12?"* The honest answer was that
+**nobody chose it.** The range `^11 | ^12 | ^13` was inherited from the spec, and
+the earlier amendment narrowed it only where it was **provably uninstallable** —
+which is not the same as justifying what survived.
+
+The deciding fact took one command: the consumer application, the first and
+only consumer and the release gate, is on `laravel/framework ^13.17`. Laravel 12
+support had **zero consumers**.
+
+Laravel 12 is not broken — verified at **12.61.1 with Filament 5.6.5, Livewire
+4.1.0, adjacency-list 1.24, core suite green**. It was dropped anyway, on an
+asymmetry: **widening a version range later is MINOR and non-breaking; narrowing
+it after publication is breaking.** Nothing is published, so narrow now and grow
+when a host actually needs it. `^12.0` was also not honest — everything below
+12.61.1 is advisory-blocked.
+
+With Laravel 13 alone, `staudenmeir/laravel-adjacency-list ^1.26` is once again
+the correct pin: it requires `illuminate/database ^13.0` only. **The spec's
+original value was right for a reason the spec had not established.**
+
+**The general failure mode, recorded because it is not specific to this package**:
+a constraint can survive every review by never being the thing under review. It
+took a direct question, not an analysis pass, and neither `/speckit-analyze` nor
+two critiques had raised it.
+
+### ⚠️ Finding F15 — the prefer-lowest CI leg had NEVER run, and it failed
+
+Narrowing the matrix was the first time `prefer-lowest` was executed at all.
+**6 browser tests failed**, on a leg that had been asserted green in three
+previous reports on the strength of reasoning alone.
+
+The cause was **not** Laravel or Filament. It was a dev-dependency floor:
+
+```
+Call to undefined method Pest\Browser\Api\Webpage::assertNoAccessibilityIssues()
+```
+
+`pestphp/pest-plugin-browser` was constrained `^4.0`, and the method arrives in
+**v4.1.0** — checked against the tags rather than guessed. Every `prefer-lowest`
+leg would have failed in CI, in a way no amount of local `prefer-stable` running
+could ever have shown.
+
+Raised to `^4.1`. The floor now resolves to Laravel 13.12.0, Filament 5.6.5,
+Livewire 4.2.0, Pest 4.3.2, plugin 4.1.0 — **215 passed**.
+
+⚠️ **The lesson is about the earlier reports, not the fix.** "The matrix is
+correct" was stated three times from reasoning. Running it took one command and
+found a real defect immediately. A claim about CI that CI has never checked is a
+claim.
+
+### Matrix now
+
+PHP 8.3 / 8.4 / 8.5 × prefer-lowest / prefer-stable — **6 legs**, down from 12,
+with no Laravel axis. 8.3 is the floor every runtime dependency declares
+(`laravel/framework` 13.x, adjacency-list 1.26 and testbench 11 all require
+`^8.3`), verified against the published constraints rather than assumed.
+
+**Both floors are now proven locally**: prefer-lowest 215 passed, prefer-stable
+215 passed, core-without-filament 101 passed.

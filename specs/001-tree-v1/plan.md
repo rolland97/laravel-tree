@@ -23,15 +23,16 @@ asset manager, so no consumer needs a bundler or a theme change.
 
 **Language/Version**: PHP 8.3+
 
-**Primary Dependencies**: `illuminate/database` and `illuminate/support` ^12 | ^13;
-`staudenmeir/laravel-adjacency-list` ^1.24. Filament v5 in `require-dev` and `suggest` only.
+**Primary Dependencies**: `illuminate/database` and `illuminate/support` ^13;
+`staudenmeir/laravel-adjacency-list` ^1.26. Filament v5 in `require-dev` and `suggest` only.
 
-⚠️ **Amended during implementation** (constitution 1.1.0). This said `^11 | ^12 | ^13` with
-adjacency-list `^1.26`, which was **internally unsatisfiable**: that release requires
-`illuminate/database ^13.0` only, so `^12` could never resolve. Laravel 11 is dropped outright —
-all 108 published 11.x releases carry unresolved security advisories, so Composer's default audit
-refuses to install them and no host could have adopted the package there. Found by attempting each
-combination rather than trusting the stated one.
+⚠️ **Amended twice during implementation** (constitution 1.1.0, then 1.2.0). This said
+`^11 | ^12 | ^13` with adjacency-list `^1.26`, which was **internally unsatisfiable**: that
+release requires `illuminate/database ^13.0` only, so `^12` could never have resolved alongside
+it. Laravel 11 was dropped because all 108 of its published releases carry unresolved security
+advisories. Laravel 12 was then dropped although it WORKS, because it has no consumer — the
+consumer application is on `^13.17` — and because widening a range later is non-breaking while
+narrowing it after publication is not. With Laravel 13 alone, `^1.26` is once again the right pin.
 
 **Storage**: The host's database, through the host's own Eloquent model. The package owns no
 tables and ships its schema change as a publishable stub.
