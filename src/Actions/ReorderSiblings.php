@@ -43,7 +43,20 @@ final class ReorderSiblings
 
         $prototype = $this->prototype($parent, $model);
 
-        $normalised = array_map(SiblingGroup::key(...), $orderedKeys);
+        // ⚠️ `array_values` is load-bearing, not tidying (finding F22).
+        //
+        // `$orderedKeys` is DOCUMENTED `list<int|string>`, and nothing enforced it:
+        // `array_map` preserves keys, and the write loop below uses the array KEY
+        // as the position. So a caller who filtered a list before passing it — and
+        // `array_filter` preserves keys — had its ORIGINAL indexes written as
+        // positions, leaving the group non-contiguous in breach of R-009, and
+        // `SiblingsReordered` carrying a keyed array that serialises to a JSON
+        // object rather than the list its own docblock promises.
+        //
+        // A documented type the code does not honour is the same defect shape as
+        // PA-2's authorization claim, and it is fixed here rather than defended
+        // against by every caller.
+        $normalised = array_values(array_map(SiblingGroup::key(...), $orderedKeys));
 
         DB::transaction(function () use ($parent, $prototype, $normalised): void {
             $positionColumn = TreeColumns::position();

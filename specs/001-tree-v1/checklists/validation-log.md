@@ -1118,3 +1118,63 @@ A behavioural test would have passed here and failed only in CI.
 Suite after: **259 passed** (254 + 5), PHPStan level 8 clean, Pint clean. ⚠️ The
 8.3/8.4 verdict is CI's to give, not this machine's — recorded as unproven locally
 until that run reports.
+
+---
+
+## ⚠️ Finding F22 — `ReorderSiblings` documented a `list` it did not enforce
+
+**Date: 2026-08-17.** Found while adopting the package, from a **larastan error in
+the consumer** — not from anything in this repository's own suite.
+
+The consumer's audit listener wrapped the event payload defensively:
+
+```php
+->withProperties(['ordered_ids' => array_values($event->orderedKeys)])
+```
+
+larastan flagged it:
+
+```
+Parameter #1 $array (list<int|string>) of array_values is already a list,
+call has no effect.
+```
+
+⚠️ **That is true only if the promise holds, and it did not.** `handle()` documents
+`@param list<int|string> $orderedKeys`, and nothing enforced it:
+
+- `array_map` **preserves keys**, so `$normalised` inherited whatever keys arrived;
+- the write loop used `foreach ($normalised as $index => $key)` — **the array key IS
+  the position**;
+- `SiblingsReordered` then carried that keyed array while its own docblock promised
+  a list.
+
+So a caller passing `[3 => $a, 7 => $b, 9 => $c]` had **3, 7 and 9 written as
+positions** — a non-contiguous group, in breach of `AGENTS.md` R-009, from a
+documented public entry point. And the event serialised to a JSON **object**, so a
+host storing `ordered_ids` in an audit trail got `{"3":12}` where every consumer
+expected `[12]`.
+
+⚠️ **Reachable by an ordinary mistake, not a contrived one.** `array_filter`
+preserves keys. A host filtering a list before reordering it is the obvious path,
+and the failure is silent in both directions.
+
+**Red observed** (2 of 11 in `ReorderSiblingsTest`):
+
+```
+⨯ it writes contiguous positions when the caller passes a KEYED array
+    Failed asserting that two arrays are identical.  (positions were [3,7,9])
+⨯ it emits a real list on SiblingsReordered even from a keyed call
+    Failed asserting that false is true.             (array_is_list)
+```
+
+**Fixed at the source** — `array_values(array_map(...))` — rather than defended
+against in every caller. The consumer's listener now trusts the documented type and
+its `array_values` is gone, which is what larastan was asking for.
+
+Suite after: **261 passed** (259 + 2), PHPStan level 8 clean, Pint clean.
+
+⚠️ **Same defect SHAPE as PA-2**, from the opposite direction: PA-2 was a contract
+promising a check the code did not perform; this was a signature promising a type
+the code did not honour. Both were found by a consumer, and neither could be found
+by reading this repository alone — R-037's "a quoted constraint is a claim" applies
+to **type annotations**, not only to prose.

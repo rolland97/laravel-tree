@@ -116,3 +116,41 @@ it('does not touch a group it was not given', function () {
     expect(Stored::order($this->parent->id))
         ->toBe([$this->delta->id, $this->charlie->id, $this->bravo->id]);
 });
+
+// ── F22 — the documented `list` was a promise the code did not keep ──────────
+
+it('writes contiguous positions when the caller passes a KEYED array', function () {
+    // ⚠️ `$orderedKeys` is documented `list<int|string>`, and the loop that writes
+    // positions used the array KEY as the position. `array_map` preserves keys, so
+    // nothing enforced that promise — and a caller who filtered a list before
+    // passing it got its ORIGINAL indexes written as positions.
+    //
+    // `array_filter` preserving keys is the obvious real path to this, which makes
+    // it a plausible host mistake rather than a theoretical one. The package must
+    // not write a non-contiguous group (AGENTS.md R-009) because a caller handed it
+    // gappy keys.
+    // The gappy keys a real `array_filter` leaves behind.
+    $keyed = [3 => $this->bravo->id, 7 => $this->delta->id, 9 => $this->charlie->id];
+
+    (new ReorderSiblings)->handle($this->parent, $keyed);
+
+    expect(Stored::order($this->parent->id))
+        ->toBe([$this->bravo->id, $this->delta->id, $this->charlie->id]);
+
+    expect(Stored::positions($this->parent->id))->toBe([0, 1, 2]);
+});
+
+it('emits a real list on SiblingsReordered even from a keyed call', function () {
+    // ⚠️ A keyed array serialises to a JSON OBJECT, so a host storing
+    // `orderedKeys` in an audit trail gets `{"3":12}` where it expected `[12]` —
+    // and every consumer that indexes it numerically breaks. The event's own
+    // docblock says `list`; this is what makes that true.
+    Event::fake([SiblingsReordered::class]);
+
+    (new ReorderSiblings)->handle($this->parent, [5 => $this->charlie->id, 2 => $this->bravo->id]);
+
+    Event::assertDispatched(SiblingsReordered::class, function (SiblingsReordered $event): bool {
+        return array_is_list($event->orderedKeys)
+            && $event->orderedKeys === [$this->charlie->id, $this->bravo->id];
+    });
+});
