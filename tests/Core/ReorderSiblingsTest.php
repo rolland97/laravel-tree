@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Event;
 use Rolland\Tree\Actions\ReorderSiblings;
 use Rolland\Tree\Events\SiblingsReordered;
+use Rolland\Tree\Exceptions\NotASiblingException;
+use Rolland\Tree\Exceptions\UnreachableReferenceException;
 use Rolland\Tree\Tests\Fixtures\Category;
 use Rolland\Tree\Tests\Fixtures\Page;
 use Rolland\Tree\Tests\Stored;
@@ -153,4 +155,43 @@ it('emits a real list on SiblingsReordered even from a keyed call', function () 
         return array_is_list($event->orderedKeys)
             && $event->orderedKeys === [$this->charlie->id, $this->bravo->id];
     });
+});
+
+// ── F23 — a non-member key was silently skipped, leaving a GAP ───────────────
+
+it('refuses a key that is not a member of the group it was given', function () {
+    // ⚠️ Found by the first consumer's FROZEN test. Its own action raised
+    // `not_siblings` for an id that was not a child of the named parent; this
+    // action looked the key up scoped to the group, and on a miss did `continue`.
+    //
+    // Silently skipping is not a smaller version of refusing — it is worse. The
+    // write loop assigns each member the index it held in the GIVEN list, so a
+    // skipped key leaves that index unused: the group ends up non-contiguous
+    // (R-009) from a call the caller was told nothing about.
+    $foreign = Category::create(['name' => 'Foreign', 'position' => 0]);
+
+    expect(fn () => (new ReorderSiblings)->handle($this->parent, [$foreign->id, $this->delta->id]))
+        ->toThrow(NotASiblingException::class);
+});
+
+it('leaves the group untouched when it refuses a non-member', function () {
+    // A refusal must not be a partial write. Resolve before writing, as
+    // `PlaceNode` already does for an unreachable reference.
+    $foreign = Category::create(['name' => 'Foreign', 'position' => 0]);
+    $before = Stored::order($this->parent->id);
+
+    try {
+        (new ReorderSiblings)->handle($this->parent, [$this->delta->id, $foreign->id]);
+    } catch (NotASiblingException) {
+        // expected
+    }
+
+    expect(Stored::order($this->parent->id))->toBe($before);
+});
+
+it('keeps the refusal distinguishable by type', function () {
+    // AGENTS.md R-010: a host reacts differently to each refusal, so they must be
+    // distinguishable by type rather than by parsing one generic message.
+    expect(new NotASiblingException)->toBeInstanceOf(DomainException::class)
+        ->and(new NotASiblingException)->not->toBeInstanceOf(UnreachableReferenceException::class);
 });

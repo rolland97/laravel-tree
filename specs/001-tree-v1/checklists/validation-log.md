@@ -1178,3 +1178,67 @@ promising a check the code did not perform; this was a signature promising a typ
 the code did not honour. Both were found by a consumer, and neither could be found
 by reading this repository alone — R-037's "a quoted constraint is a claim" applies
 to **type annotations**, not only to prose.
+
+---
+
+## ⚠️ Finding F23 — `ReorderSiblings` silently skipped a non-member key, leaving a GAP
+
+**Date: 2026-08-17.** Found by the consumer's **frozen test**, during 073 T019.
+
+The consumer's own action raised `not_siblings` when an ordered id was not a child
+of the named parent, and its test asserts that refusal. This action instead looked
+each key up scoped to the group and did `continue` on a miss.
+
+⚠️ **Skipping is not a gentler refusal — it is a worse one.** The write loop gives
+each member the index it held in the GIVEN list, so a skipped key leaves that index
+unused:
+
+```
+handle($parent, [$foreign->id, $delta->id])
+  → $foreign skipped, $delta written at index 1
+  → the group holds position 1 with no position 0
+```
+
+A **non-contiguous group** (`AGENTS.md` R-009) produced by a call that reported
+success. Third contiguity defect in this action's history, after `$model` (I3) and
+the unenforced `list` (F22).
+
+**Red observed**, 2 of 14 in `ReorderSiblingsTest`:
+
+```
+⨯ it refuses a key that is not a member of the group it was given
+⨯ it keeps the refusal distinguishable by type
+  Class "Rolland\Tree\Exceptions\NotASiblingException" not found
+```
+
+⚠️ The third new case — *it leaves the group untouched when it refuses* — **passed
+before the fix, vacuously**: with nothing thrown the group happened to be written
+back to the order it already had. It is meaningful only now, and is recorded here
+so it is not mistaken for a guard whose red was seen.
+
+### The fix, and why the resolve moved out of the transaction
+
+Every key is now resolved **before the first write**, and a miss raises
+`NotASiblingException`. Resolving first is what makes the refusal atomic without
+relying on a rollback — the same order `PlaceNode` already uses for an unreachable
+reference, and for the same reason.
+
+### Why a new exception type rather than reusing `UnreachableReferenceException`
+
+`UnreachableReferenceException` is deliberately vague across three causes so a
+caller cannot learn whether a hidden node exists (FR-037). ⚠️ **No such disclosure
+arises here**: a reorder's keys are the caller's own claim about one group it
+already named, so telling it plainly that a key does not belong reveals nothing it
+did not supply. Conflating the two would have made the vague type vaguer, which is
+the opposite of R-010.
+
+New public surface: `NotASiblingException` and `tree.refused.not_a_sibling`.
+
+Suite after: **264 passed** (261 + 3), PHPStan level 8 clean, Pint clean.
+
+⚠️ **Three consumer-found defects in one action.** F22 and F23 are both "the
+documented contract was not enforced", and both were invisible to this repository's
+own suite because nothing here called the action the way a host would. That is the
+release gate earning its keep for the third and fourth time — and an argument that
+R-035's "an API frozen without a consumer is frozen against guesses" was
+understated.

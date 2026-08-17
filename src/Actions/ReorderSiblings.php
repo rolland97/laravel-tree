@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Rolland\Tree\Contracts\TreeNode;
 use Rolland\Tree\Events\SiblingsReordered;
+use Rolland\Tree\Exceptions\NotASiblingException;
 use Rolland\Tree\Support\SiblingGroup;
 use Rolland\Tree\Support\TreeColumns;
 
@@ -34,6 +35,7 @@ final class ReorderSiblings
      * is owed. If either of the first two ever changes meaning, rename the method.
      *
      * @throws InvalidArgumentException when a root-level group names no model
+     * @throws NotASiblingException when a key is not a member of the named group
      */
     public function handle(?TreeNode $parent, array $orderedKeys, ?string $model = null): void
     {
@@ -58,18 +60,35 @@ final class ReorderSiblings
         // against by every caller.
         $normalised = array_values(array_map(SiblingGroup::key(...), $orderedKeys));
 
-        DB::transaction(function () use ($parent, $prototype, $normalised): void {
+        // ⚠️ Resolve EVERY key before writing anything (finding F23).
+        //
+        // This loop used to sit inside the transaction and `continue` past a key it
+        // could not find in the group. Skipping is not a gentler refusal: the write
+        // below gives each member the index it held in the GIVEN list, so a skipped
+        // key leaves that index unused and the group ends up NON-CONTIGUOUS
+        // (R-009) — from a call that reported success.
+        //
+        // Resolved first, and refused before the first write, so a refusal leaves
+        // the group exactly as it was. Same order `PlaceNode` uses for an
+        // unreachable reference, and for the same reason.
+        $siblings = [];
+
+        foreach ($normalised as $key) {
+            $sibling = $prototype->newQuery()
+                ->where(TreeColumns::parent(), $parent?->getKey())
+                ->find($key);
+
+            if (! $sibling instanceof Model) {
+                throw NotASiblingException::make();
+            }
+
+            $siblings[] = $sibling;
+        }
+
+        DB::transaction(function () use ($siblings): void {
             $positionColumn = TreeColumns::position();
 
-            foreach ($normalised as $index => $key) {
-                $sibling = $prototype->newQuery()
-                    ->where(TreeColumns::parent(), $parent?->getKey())
-                    ->find($key);
-
-                if (! $sibling instanceof Model) {
-                    continue;
-                }
-
+            foreach ($siblings as $index => $sibling) {
                 if ((int) $sibling->getAttribute($positionColumn) === $index) {
                     continue;
                 }

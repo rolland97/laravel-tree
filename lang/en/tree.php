@@ -27,6 +27,15 @@ return [
         | unnamed refusal on a page of rows tells the actor nothing.
         */
         'unauthorized' => 'You cannot move :name.',
+
+        /*
+        | ⚠️ F23. A reorder naming a key that is not a member of the group it
+        | named. A SEPARATE message from `unreachable_reference`, which is
+        | deliberately vague across three causes to avoid disclosing whether a
+        | hidden node exists — no such disclosure arises here, because the keys
+        | are the caller's own claim about a group it already named.
+        */
+        'not_a_sibling' => 'Those are not all children of the same parent.',
     ],
 
     /*
