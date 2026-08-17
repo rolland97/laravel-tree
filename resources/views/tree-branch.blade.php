@@ -31,6 +31,7 @@
         x-bind:tabindex="focusedId === @js((string) $key) ? 0 : -1"
         x-bind:class="{ 'ltree-held': heldId === @js((string) $key) }"
         x-bind:aria-grabbed="heldId === @js((string) $key) ? 'true' : null"
+        @if ($node->isValidTreeTarget() === false) data-ltree-locked="true" @endif
         data-ltree-key="{{ $key }}"
         data-ltree-parent="{{ $node->treeParentId() }}"
         aria-labelledby="{{ $nameId }}"

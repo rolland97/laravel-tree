@@ -267,36 +267,36 @@ code at all). Parallelising the stories destroys the proof.
 
 ### Tests first
 
-- [ ] T077 [P] [US4] `tests/Browser/KeyboardReorderTest.php`: pick up → announced.
-- [ ] T078 [P] [US4] Move among siblings → each new position announced, **nothing persisted**.
-- [ ] T079 [P] [US4] Put down → committed through the same path as the pointer, completion
+- [X] T077 [P] [US4] `tests/Browser/KeyboardReorderTest.php`: pick up → announced.
+- [X] T078 [P] [US4] Move among siblings → each new position announced, **nothing persisted**.
+- [X] T079 [P] [US4] Put down → committed through the same path as the pointer, completion
       announced. ⚠️ The source application shipped `put_down` with **no assertion at all** and
       only its critique caught it.
-- [ ] T080 [P] [US4] Cancel → tree unchanged, cancellation announced.
-- [ ] T081 [P] [US4] Focus leaves the tree mid-hold → abandonment announced, nothing persisted.
-- [ ] T082 [P] [US4] Boundaries announced: only child, already first, **already last** — the
+- [X] T080 [P] [US4] Cancel → tree unchanged, cancellation announced.
+- [X] T081 [P] [US4] Focus leaves the tree mid-hold → abandonment announced, nothing persisted.
+- [X] T082 [P] [US4] Boundaries announced: only child, already first, **already last** — the
       second omission the critique found.
-- [ ] T083 [P] [US4] Unauthorised pick-up → refusal announced, no hold begins.
-- [ ] T084 [P] [US4] A completed interaction fires **exactly one** move event, not one per
+- [X] T083 [P] [US4] Unauthorised pick-up → refusal announced, no hold begins.
+- [X] T084 [P] [US4] A completed interaction fires **exactly one** move event, not one per
       keystroke.
-- [ ] T085 [P] [US4] The announcement survives a re-render the package did not initiate.
-- [ ] T086 [US4] **Watch T077–T085 fail**; record REDs.
+- [X] T085 [P] [US4] The announcement survives a re-render the package did not initiate.
+- [X] T086 [US4] **Watch T077–T085 fail**; record REDs.
 
 ### Implementation
 
-- [ ] T087 [US4] Held state lives client-side; **no server call until the drop**. A call per arrow
+- [X] T087 [US4] Held state lives client-side; **no server call until the drop**. A call per arrow
       press would write one audit row per keystroke for what the user thinks of as one move.
-- [ ] T088 [US4] Commit through the **same** helper the pointer release uses — exactly one copy of
+- [X] T088 [US4] Commit through the **same** helper the pointer release uses — exactly one copy of
       the placement contract.
-- [ ] T089 [US4] Live region excluded from morphing. ⚠️ Its content is **client state the server
+- [X] T089 [US4] Live region excluded from morphing. ⚠️ Its content is **client state the server
       knows nothing about**; a re-render fires more than one morph and the second wipes what the
       first wrote.
-- [ ] T090 [US4] Morph hook checks **which** component morphed. ⚠️ Without it a host panel polling
+- [X] T090 [US4] Morph hook checks **which** component morphed. ⚠️ Without it a host panel polling
       a bell every 30 seconds silently abandons every held node. And scoping by component id does
       **not** work — dropping the check rather than fixing it is how that defect got in.
-- [ ] T091 [US4] `focus()` after `$nextTick`. ⚠️ `focus()` on a hidden element is a silent no-op,
+- [X] T091 [US4] `focus()` after `$nextTick`. ⚠️ `focus()` on a hidden element is a silent no-op,
       and at morph time the moved row's branch may still be `display: none`.
-- [ ] T092 [US4] ⚠️ Browser-harness traps (research R11): follow every expand with a waiting
+- [X] T092 [US4] ⚠️ Browser-harness traps (research R11): follow every expand with a waiting
       assertion, because `keys()` is focus-then-type and a key pressed mid-expand lands on the
       previously focused row. And `void` any `$wire.$refresh()` — awaited in a page evaluation it
       returns a promise that never resolves, and hung the source application's run for fifteen

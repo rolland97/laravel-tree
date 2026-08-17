@@ -36,6 +36,15 @@ function ltree(strings = {}) {
         /** Branch keys the user has closed. Client state; the server has no opinion. */
         collapsed: {},
 
+        /**
+         * The keyboard hold. ⚠️ ALL of this is client state, and NONE of it reaches
+         * the server until the drop (T087). A call per arrow press would write one
+         * audit row per keystroke for what the user thinks of as one move.
+         */
+        heldSiblings: [],
+        heldIndex: 0,
+        heldOrigin: 0,
+
         init() {
             this.adoptFirstRow()
 
@@ -44,6 +53,37 @@ function ltree(strings = {}) {
             this.$el.addEventListener('dragleave', (event) => this.onDragLeave(event))
             this.$el.addEventListener('drop', (event) => this.onDrop(event))
             this.$el.addEventListener('dragend', () => this.clearDrag())
+
+            this.guardAgainstForeignMorphs()
+        },
+
+        /**
+         * ⚠️ Check WHICH component morphed before reacting to a morph at all.
+         *
+         * Without this, a host panel polling a notification bell every 30 seconds
+         * silently abandons every held node — a defect the source application
+         * shipped. And scoping by component id is not optional extra care: dropping
+         * the check rather than fixing it is HOW that defect got in.
+         *
+         * The hold lives in Alpine state on an element Livewire does not replace, so
+         * the correct behaviour for a foreign morph is to do nothing at all. This
+         * hook exists to make that explicit and to keep the reasoning attached to
+         * the code, rather than leaving the absence of a hook to look accidental.
+         */
+        guardAgainstForeignMorphs() {
+            if (!window.Livewire || typeof window.Livewire.hook !== 'function') {
+                return
+            }
+
+            const ours = this.$el.closest('[wire\\:id]')?.getAttribute('wire:id') ?? null
+
+            window.Livewire.hook('morph', ({ component }) => {
+                if (!ours || component?.id !== ours) {
+                    // A DIFFERENT component re-rendered. Not our business, and
+                    // certainly not a reason to drop what the user is carrying.
+                    return
+                }
+            })
         },
 
         // ── Reading the rendered tree ────────────────────────────────────────
@@ -305,10 +345,182 @@ function ltree(strings = {}) {
             this.focusRow(displayed[next])
         },
 
+        // ── Announcements (US4) ──────────────────────────────────────────────
+
+        nameOf(key) {
+            return this.rowFor(key)?.querySelector('.ltree-row-name')?.textContent?.trim() ?? ''
+        },
+
+        /**
+         * ⚠️ Templates come from the SERVER, as the argument to this factory
+         * (research R7). Only the substitution happens here, so a host that
+         * translates `tree::tree.announce.*` changes what is heard without touching
+         * any JavaScript.
+         */
+        say(template, replacements = {}) {
+            const text = this.strings?.[template]
+
+            if (!text) {
+                return
+            }
+
+            this.announce(
+                Object.entries(replacements).reduce(
+                    (carry, [token, value]) => carry.split(`:${token}`).join(value),
+                    text,
+                )
+            )
+        },
+
+        // ── The keyboard hold (US4) ──────────────────────────────────────────
+
+        siblingRowsOf(row) {
+            const parentKey = row.dataset.ltreeParent ?? ''
+            const selector = `[data-ltree-key][data-ltree-parent="${parentKey}"]`
+
+            return Array.from(this.$el.querySelectorAll(selector))
+                .filter((candidate) => !this.isHiddenByCollapse(candidate))
+        },
+
+        pickUp(row) {
+            // A courtesy refusal only. The REAL guard is placeNode() re-checking
+            // the host's authorization on the committing call.
+            if (row.dataset.ltreeLocked === 'true') {
+                this.say('refused', { name: this.nameOf(row.dataset.ltreeKey) })
+
+                return
+            }
+
+            const siblings = this.siblingRowsOf(row).map((r) => r.dataset.ltreeKey)
+
+            this.heldId = row.dataset.ltreeKey
+            this.heldSiblings = siblings
+            this.heldIndex = siblings.indexOf(this.heldId)
+            this.heldOrigin = this.heldIndex
+
+            this.say('picked_up', { name: this.nameOf(this.heldId) })
+        },
+
+        moveHeld(delta) {
+            const total = this.heldSiblings.length
+
+            if (total <= 1) {
+                this.say('only_child', { name: this.nameOf(this.heldId) })
+
+                return
+            }
+
+            const next = this.heldIndex + delta
+
+            if (next < 0) {
+                this.say('already_first', { name: this.nameOf(this.heldId) })
+
+                return
+            }
+
+            if (next >= total) {
+                this.say('already_last', { name: this.nameOf(this.heldId) })
+
+                return
+            }
+
+            this.heldIndex = next
+
+            this.say('moved', {
+                name: this.nameOf(this.heldId),
+                position: next + 1,
+                total,
+            })
+        },
+
+        putDown() {
+            const heldId = this.heldId
+            const row = this.rowFor(heldId)
+
+            if (!row) {
+                this.releaseHold()
+
+                return
+            }
+
+            const others = this.heldSiblings.filter((key) => key !== heldId)
+            const total = this.heldSiblings.length
+            const index = this.heldIndex
+
+            // ⚠️ A NEIGHBOUR, never an index. The server is never told "position 2";
+            // it is told "before Charlie" or "after Delta", and resolves that against
+            // the complete group itself (constitution Principle II).
+            const target = index === 0
+                ? { referenceKey: others[0], placement: 'Before' }
+                : { referenceKey: others[index - 1], placement: 'After' }
+
+            const destinationParentKey = row.dataset.ltreeParent || null
+
+            this.say('put_down', { name: this.nameOf(heldId), position: index + 1, total })
+            this.releaseHold()
+
+            if (target.referenceKey === undefined) {
+                return
+            }
+
+            // ⚠️ THE SAME helper the pointer release uses (T088). Exactly one copy
+            // of the placement contract, so the keyboard cannot drift from the drag.
+            this.commit(heldId, {
+                destinationParentKey,
+                referenceKey: target.referenceKey,
+                placement: target.placement,
+            })
+        },
+
+        cancelHold() {
+            const name = this.nameOf(this.heldId)
+            this.releaseHold()
+            this.say('cancelled', { name })
+        },
+
+        abandonHold() {
+            const name = this.nameOf(this.heldId)
+            this.releaseHold()
+            this.say('abandoned', { name })
+        },
+
+        releaseHold() {
+            this.heldId = null
+            this.heldSiblings = []
+            this.heldIndex = 0
+            this.heldOrigin = 0
+        },
+
         onTreeKeydown(event) {
             const row = event.target.closest?.('[data-ltree-key]')
 
             if (!row) {
+                return
+            }
+
+            // ⚠️ While a node is HELD the arrows mean something else entirely, so
+            // traversal must not also run. Handled first, and exclusively.
+            if (this.heldId !== null) {
+                const held = {
+                    ArrowUp: () => this.moveHeld(-1),
+                    ArrowDown: () => this.moveHeld(1),
+                    Enter: () => this.putDown(),
+                    ' ': () => this.putDown(),
+                    Escape: () => this.cancelHold(),
+                }[event.key]
+
+                if (held) {
+                    event.preventDefault()
+                    held()
+                }
+
+                return
+            }
+
+            if (event.key === ' ' || event.key === 'Spacebar') {
+                event.preventDefault()
+                this.pickUp(row)
+
                 return
             }
 
@@ -356,8 +568,31 @@ function ltree(strings = {}) {
             handler()
         },
 
-        onTreeFocusOut() {
-            // Abandonment announcement lands in T081/T087.
+        /**
+         * ⚠️ Focus leaving the tree mid-hold ABANDONS the move and says so.
+         *
+         * Silently keeping the hold would leave a node carried by a user who has
+         * moved on, and the next arrow press anywhere would move it.
+         */
+        onTreeFocusOut(event) {
+            if (this.heldId === null) {
+                return
+            }
+
+            const goingTo = event?.relatedTarget ?? document.activeElement
+
+            // ⚠️ Containment is checked against the role="tree" element, NOT the
+            // component root. The root also holds the search box and the live
+            // region, so testing against it would treat "tabbed into the search
+            // field" as "still in the tree" and leave the node held while the user
+            // typed — every keystroke then landing somewhere unexpected.
+            const tree = this.$el.querySelector('[role="tree"]')
+
+            if (goingTo && tree && tree.contains(goingTo)) {
+                return
+            }
+
+            this.abandonHold()
         },
 
         /**

@@ -263,3 +263,60 @@ violation inherited merely by using it. This page uses no collapsible section, s
 nothing is currently wrong; two guards were added anyway, to catch the day one is
 introduced. An empty `aria-label` is worse than none — it overrides the name the
 element would otherwise have computed.
+
+---
+
+## T086 — US4 keyboard reordering guards (T077–T085)
+
+**Absence red observed**: `13 failed, 3 passed`. ⚠️ The three passes were VACUOUS —
+with no hold implemented, "writes nothing while held" and "tree unchanged when
+cancelled" pass because nothing happens at all.
+
+### Mutation red
+
+Every mutation below **verified that it applied** before the suite ran. That check
+exists because of finding F7: a mutation that silently fails to apply is
+indistinguishable from a guard that cannot fail.
+
+| # | Mutation | Guards reddened |
+|---|---|---|
+| R1 | put the node down beside the WRONG neighbour | 1 — `it commits the move when the node is put down` |
+| R2 | drop the put-down announcement | 1 — T079, the assertion the source application never wrote |
+| R3 | drop the already-last announcement | 1 — T082, the second omission its critique found |
+| R4 | call the server on EVERY arrow press | 3 — *after the guard was strengthened; see below* |
+| R5 | never abandon a hold when focus leaves the tree | 1 — T081 |
+| R6 | remove `wire:ignore` from the live region | **0 — see F9** |
+
+### ⚠️ Finding F8 — a "nothing happened" guard that could outrun the thing it forbids
+
+R4's first form released the hold as a side effect, so only one commit ever
+happened and T084 stayed green — an **inadequate mutation**, not a passing guard.
+Rewritten to commit on every arrow press while keeping the hold, it reddened T084
+immediately.
+
+But `it writes NOTHING to the database while a node is merely held` still passed,
+and that WAS a real weakness. The guard asserts that nothing happened, so it has
+no signal to wait for — and it was reading the database before a Livewire round
+trip that should never have been made could land. The same race as F3, in a form
+that hides a defect rather than inventing one.
+
+Fixed with an explicit grace period before the assertion. Re-running the mutation
+then reddens three guards instead of two.
+
+**The general lesson**: an assertion that something did NOT happen is only as
+strong as the time it waits before looking.
+
+### ⚠️ Finding F9 — the announcement is protected twice, like the self-reference refusal
+
+Removing `wire:ignore` from the live region reddened nothing. Investigated rather
+than accepted, and it is the same shape as F1:
+
+| Mutation | Result |
+|---|---|
+| remove `wire:ignore` only | passes — `x-text="announcement"` re-applies from Alpine state after the morph |
+| remove `x-text` only | passes — `wire:ignore` keeps the morph away from the node |
+| **remove both** | **fails** — the announcement is wiped, exactly as AGENTS.md R-017 describes |
+
+Both mechanisms are kept. `wire:ignore` is the one the source application's live
+defect named, and it must not be "tidied away" on the evidence that the suite stays
+green without it.

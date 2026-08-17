@@ -13,7 +13,10 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Event;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Rolland\Tree\Events\NodeMoved;
+use Rolland\Tree\Tests\Fixtures\MoveCounter;
 
 /**
  * The smallest panel that can be served to a browser from inside a PACKAGE.
@@ -29,6 +32,17 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
  */
 final class TestPanelProvider extends PanelProvider
 {
+    public function boot(): void
+    {
+        // ⚠️ No parent::boot() — Filament\PanelProvider does not declare one.
+
+        // Registered HERE, in the SERVED app's container, so browser tests can
+        // count events raised by a real HTTP request. See MoveCounter.
+        Event::listen(NodeMoved::class, function (): void {
+            MoveCounter::$moved++;
+        });
+    }
+
     public function panel(Panel $panel): Panel
     {
         return $panel
