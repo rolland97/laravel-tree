@@ -384,6 +384,58 @@ stays green without it (see `checklists/validation-log.md` on guards held by two
 and must also listen for `SiblingsReordered`. That is the point of the amendment, and it is
 the one behavioural break in PA-1…PA-4.
 
+#### The announcement placeholder contract — ⚠️ AMENDMENT (during implementation, 001-tree-v1)
+
+A host overriding `tree::tree.announce.*` may use these placeholders, **per key**. Anything
+else is emitted literally.
+
+| Key | `:name` | `:position` | `:total` | `:parent` | Raised by |
+|---|:---:|:---:|:---:|:---:|---|
+| `picked_up` | ✅ | ✅ | ✅ | — | controller |
+| `moved` | ✅ | ✅ | ✅ | — | controller |
+| `put_down` | ✅ | ✅ | ✅ | — | controller |
+| `cancelled` | ✅ | ✅ | ✅ | — | controller |
+| `abandoned` | ✅ | ✅ | ✅ | — | controller |
+| `already_first` | ✅ | ✅ | ✅ | — | controller |
+| `already_last` | ✅ | ✅ | ✅ | — | controller |
+| `only_child` | ✅ | ✅ | ✅ | — | controller **and** `commit()` |
+| `refused` | ✅ | — | — | — | controller |
+| `moved_into` | ✅ | ✅ | ✅ | ✅ | ⚠️ **nothing — see below** |
+
+**What was wrong.** Four keys — `picked_up`, `cancelled`, `already_first`, `already_last` —
+were handed only `:name`. A host whose wording used `:position` or `:total` had the literal
+text `":position"` announced to a screen-reader user (the consumer's adoption, research F10 — **PA-4**).
+It rendered fine and passed every assertion, which is the `:daysd` failure mode 072 already
+paid for once.
+
+⚠️ **The package's own sweep cannot catch this, structurally.**
+`tests/Core/HostOverridesCopyTest.php` checks the package's lang file against the package's
+token list — and the package's own wording does not use the missing tokens. The mismatch
+exists **only once a host overrides**, so the guard has to be a host override. That is
+`tests/Fixtures/Panel/AnnouncementTreePage.php`, exercised through a real browser.
+
+**One rule, not four fixes.** While a node is held the controller knows the name, the position
+and the group size, so it now passes all three to every announcement raised in that state.
+Replacements a template does not use are ignored, so this is **additive** for every existing
+host. `refused` is raised on a locked row that was never picked up and has no such context.
+
+⚠️ **`cancelled` and `abandoned` announce the ORIGINAL position**, not where the abandoned
+move had walked the node to. The node returns to where it started; announcing anything else
+tells a non-sighted user the node is somewhere it is not.
+
+⚠️ **`only_child` is raised from two producers** — the controller and `commit()` — and both
+now pass the same three tokens. A key that substituted `:total` in the browser but not on the
+server would be this same defect, reachable through whichever producer a host did not
+exercise.
+
+⚠️ **`moved_into` has no producer.** The template ships and is documented, but
+`grep -oE "say\('[a-z_]+'" resources/js/tree.js` lists nine keys and this is not one of them —
+the controller never announces a re-parent as "inside :parent". This is the same shape as the
+`SiblingsReordered` gap PA-3 closed, found the same way, and it is **not fixed here**: PA-4's
+scope is the placeholder contract, and the consumer's F10 records `moved_into` as *"a tenth
+announcement this app has never had"* — an addition to design with the host that wants it,
+not a hole to fill on a guess. Recorded rather than quietly dropped.
+
 ### ~~`Rolland\Tree\Filament\Testing\AssertsTree`~~ — **RETRACTED, never shipped**
 
 ⚠️ **AMENDMENT (during implementation, 001-tree-v1).** This entry promised assertion helpers

@@ -423,14 +423,42 @@ function ltree(strings = {}) {
             this.heldIndex = siblings.indexOf(this.heldId)
             this.heldOrigin = this.heldIndex
 
-            this.say('picked_up', { name: this.nameOf(this.heldId) })
+            this.say('picked_up', this.heldContext())
+        },
+
+        /**
+         * ⚠️ The substitutions for every announcement raised WHILE A NODE IS HELD
+         * (package amendment PA-4).
+         *
+         * Four keys — picked_up, cancelled, already_first, already_last — were
+         * handed only `:name`, so a host whose wording used `:position` or
+         * `:total` had the literal text ":position" announced to a screen-reader
+         * user. It rendered fine and passed every assertion.
+         *
+         * ⚠️ The package's own sweep cannot catch that: it checks the package's
+         * lang file against the package's token list, and the package's own
+         * wording does not use the missing tokens. The mismatch only exists once a
+         * HOST overrides.
+         *
+         * One rule rather than four fixes: while a node is held the controller
+         * knows all three, so it always passes all three. Extra replacements a
+         * template does not use are ignored, so this is additive for every
+         * existing host.
+         */
+        heldContext(overrides = {}) {
+            return {
+                name: this.nameOf(this.heldId),
+                position: this.heldIndex + 1,
+                total: this.heldSiblings.length,
+                ...overrides,
+            }
         },
 
         moveHeld(delta) {
             const total = this.heldSiblings.length
 
             if (total <= 1) {
-                this.say('only_child', { name: this.nameOf(this.heldId) })
+                this.say('only_child', this.heldContext())
 
                 return
             }
@@ -438,24 +466,20 @@ function ltree(strings = {}) {
             const next = this.heldIndex + delta
 
             if (next < 0) {
-                this.say('already_first', { name: this.nameOf(this.heldId) })
+                this.say('already_first', this.heldContext())
 
                 return
             }
 
             if (next >= total) {
-                this.say('already_last', { name: this.nameOf(this.heldId) })
+                this.say('already_last', this.heldContext())
 
                 return
             }
 
             this.heldIndex = next
 
-            this.say('moved', {
-                name: this.nameOf(this.heldId),
-                position: next + 1,
-                total,
-            })
+            this.say('moved', this.heldContext())
         },
 
         putDown() {
@@ -469,7 +493,6 @@ function ltree(strings = {}) {
             }
 
             const others = this.heldSiblings.filter((key) => key !== heldId)
-            const total = this.heldSiblings.length
             const index = this.heldIndex
 
             // ⚠️ A NEIGHBOUR, never an index. The server is never told "position 2";
@@ -481,7 +504,7 @@ function ltree(strings = {}) {
 
             const destinationParentKey = row.dataset.ltreeParent || null
 
-            this.say('put_down', { name: this.nameOf(heldId), position: index + 1, total })
+            this.say('put_down', this.heldContext())
             this.releaseHold()
 
             if (target.referenceKey === undefined) {
@@ -498,15 +521,19 @@ function ltree(strings = {}) {
         },
 
         cancelHold() {
-            const name = this.nameOf(this.heldId)
+            // ⚠️ The ORIGINAL position, captured before releaseHold() clears it.
+            // The node returns to where it started, so announcing where the
+            // abandoned move had walked it to would tell a non-sighted user it is
+            // somewhere it is not.
+            const context = this.heldContext({ position: this.heldOrigin + 1 })
             this.releaseHold()
-            this.say('cancelled', { name })
+            this.say('cancelled', context)
         },
 
         abandonHold() {
-            const name = this.nameOf(this.heldId)
+            const context = this.heldContext({ position: this.heldOrigin + 1 })
             this.releaseHold()
-            this.say('abandoned', { name })
+            this.say('abandoned', context)
         },
 
         releaseHold() {

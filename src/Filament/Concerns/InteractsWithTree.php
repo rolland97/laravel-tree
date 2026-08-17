@@ -494,8 +494,15 @@ trait InteractsWithTree
         // Scoped to a REORDER. Being an only child does not make a RE-PARENT a
         // no-op, and a guard broad enough to refuse that would refuse real work.
         if ($this->isOnlyChildReorder($node, $parent)) {
+            // ⚠️ The SAME token set the Alpine controller passes for this key
+            // (PA-4). `only_child` is the one announcement raised from both the
+            // client and the server, and a key that substituted `:total` in the
+            // browser but not here would be the very defect PA-4 closes, reachable
+            // through whichever producer the host happened not to exercise.
             $this->report((string) __('tree::tree.announce.only_child', [
                 'name' => $this->treeNameFor($node),
+                'position' => $this->treePositionFor($node),
+                'total' => $this->treeSetSizeFor($node),
             ]));
 
             return;
