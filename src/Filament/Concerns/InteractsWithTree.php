@@ -130,7 +130,19 @@ trait InteractsWithTree
     /**
      * The host's privacy scope. Required.
      *
-     * @return Builder<Model&TreeNode>
+     * ⚠️ `covariant`, and it is not decoration (finding F25). `Builder`'s template
+     * parameter is INVARIANT, so `Builder<Model&TreeNode>` demanded that every host
+     * return a builder of exactly that intersection — which no host can, because a
+     * host returns `Builder<ItsOwnModel>`. The declaration made a documented,
+     * REQUIRED slot impossible to implement for any consumer running static
+     * analysis at a useful level, and the package's own suite could not see it
+     * because its fixtures are not analysed.
+     *
+     * Found by the first consumer at PHPStan level 8. Marking the argument
+     * covariant says what was always meant: any builder of a tree node will do,
+     * because the package only ever READS through it.
+     *
+     * @return Builder<covariant Model&TreeNode>
      */
     abstract protected function visibleQuery(): Builder;
 

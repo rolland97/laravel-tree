@@ -1313,3 +1313,61 @@ amended for. Proved with a throwaway probe before ~400 lines were written on it
 
 Promoting the order is the same fix PA-5 made for `matchesSearch()`: a host
 depending on an undocumented internal is a host a patch release can break.
+
+---
+
+## ⚠️ Finding F25 — a REQUIRED slot no consumer could implement under static analysis
+
+**Date: 2026-08-17.** Found by the consumer at PHPStan level 8, during 073 Phase 5.
+**28 errors, all in the host's page**, every one traceable to how this trait types
+its slots.
+
+### The part that was impossible, not merely awkward
+
+```
+Method …::visibleQuery() should return Builder<Model&TreeNode>
+but returns Builder<App\Models\Vendors\VendorCategory>.
+tip: Template type TModel on class Builder is not covariant.
+```
+
+`Builder`'s template parameter is **invariant**, so `@return Builder<Model&TreeNode>`
+demanded a builder of exactly that intersection. **No host can produce one** — a
+host returns a builder of its own model. So the package's single REQUIRED slot,
+the one every consumer must implement, was **impossible to satisfy** for anyone
+analysing their code at a useful level.
+
+⚠️ **The package's own suite cannot see this**, and that is structural: its
+fixtures live under `tests/`, and PHPStan analyses `src` and `config` only
+(R-031). Nothing analysed ever implements `visibleQuery()`.
+
+**Fixed** with `Builder<covariant Model&TreeNode>` — one line, saying what was
+always meant: any builder of a tree node will do, because the package only ever
+reads through it.
+
+### The part deferred, deliberately
+
+The other 25 errors were `Access to an undefined property Model::$name`, `$id`,
+`$is_active`… in the host's own slot overrides. The slots are declared
+`Model $node`, and **PHP forbids an override from narrowing a parameter**, so a
+host cannot type its slots as its own model however certainly it knows that is
+what arrives.
+
+⚠️ **Making the trait generic (`@template TNode of Model&TreeNode`) was attempted
+and reverted.** It works, but it cascades: ten more internal signatures
+(`readNodesByParent`, `authorizeMove`, `treeParentKeyFor`, `treeNameFor`, the three
+`tree*For` wrappers, `isOnlyChildReorder`, `isSameParentReorder`, `reorder`) need
+the template threaded through, and every host gains a `@use InteractsWithTree<X>`
+binding. Landing a cross-cutting type change at the tail of an adoption, on a
+long session, is how the `$view` defect got shipped — so it is recorded here with
+its evidence rather than half-applied.
+
+**The consumer's workaround, for now**: one private `category(Model $node):
+VendorCategory` helper that THROWS, used at the top of each slot. It cannot
+trigger — the node came from the host's own `visibleQuery()` — and it fails loudly
+rather than returning a default, so it never hides the bug it was written for.
+
+⚠️ **Recorded as the remaining candidate amendment.** Every consumer running
+PHPStan will hit the same 25 errors and invent the same workaround, which is the
+definition of something the library should own.
+
+Suite after: **270 passed**, PHPStan level 8 clean on both sides.
