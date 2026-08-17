@@ -308,7 +308,8 @@ code at all). Parallelising the stories destroys the proof.
 
 ## Phase 8: Polish, verification and the release gate
 
-- [X] T093 [P] [POLISH] Re-cite the five `[pending artifact]` rules in `AGENTS.md` against the
+- [X] T093 [P] [POLISH] Re-cite the ~~five~~ **four** `[pending artifact]` rules in `AGENTS.md`
+      (R-029, R-031, R-032, R-033 — the count in this task was wrong) against the
       files T003–T005/T008 created, retagging each `[ratified]`. ⚠️ A rule still citing an
       intention after its artifact exists is drift.
 - [X] T094 [P] [POLISH] Update the constitution's sync impact report: `README.md` now exists.

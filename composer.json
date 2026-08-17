@@ -1,7 +1,14 @@
 {
     "name": "rolland97/laravel-tree",
     "description": "Adjacency-list tree management for Eloquent, plus an accessible drag-and-keyboard Filament tree page.",
-    "keywords": ["laravel", "eloquent", "tree", "adjacency-list", "filament", "accessibility"],
+    "keywords": [
+        "laravel",
+        "eloquent",
+        "tree",
+        "adjacency-list",
+        "filament",
+        "accessibility"
+    ],
     "license": "MIT",
     "type": "library",
     "authors": [
@@ -11,15 +18,15 @@
     ],
     "require": {
         "php": "^8.3",
-        "illuminate/database": "^11.0|^12.0|^13.0",
-        "illuminate/support": "^11.0|^12.0|^13.0",
-        "staudenmeir/laravel-adjacency-list": "^1.26"
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0",
+        "staudenmeir/laravel-adjacency-list": "^1.24"
     },
     "require-dev": {
         "filament/filament": "^5.0",
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.20",
-        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "orchestra/testbench": "^10.0|^11.0",
         "pestphp/pest": "^4.0",
         "pestphp/pest-plugin-browser": "^4.0"
     },

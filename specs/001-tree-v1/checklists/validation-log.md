@@ -523,3 +523,77 @@ roots.
 
 Proved against both fixtures (FR-045), and the root-level path is covered for
 ordering, contiguity, the event, and the event's null parent id.
+
+---
+
+## M1 — the CI matrix, and two dependency claims that were not true
+
+Adding PHP 8.5 to the matrix meant first checking which combinations actually
+install. They were checked, not assumed, and two of them do not.
+
+### ⚠️ Finding F11 — `staudenmeir/laravel-adjacency-list ^1.26` pins Laravel 13
+
+The dependency is versioned **one Laravel per minor**:
+
+| adjacency-list | `illuminate/database` |
+|---|---|
+| v1.26.x | `^13.0` **only** |
+| v1.24 – v1.25.x | `^12.0` **only** |
+| v1.23.5 | `^11.0` **only** |
+
+So `composer.json`'s `^1.26` made `illuminate/* ^11.0|^12.0|^13.0` **unsatisfiable
+on anything but Laravel 13** — the package could not have installed on Laravel 12
+at all, and CI would have said so on its first run. Widened to `^1.24`, which lets
+Composer pick the release matching the host's framework.
+
+Verified rather than assumed: with the constraint widened, Laravel 12 resolves to
+framework 12.66 with adjacency-list 1.25.2, and the suites pass on it —
+**core 92, bridge 39** on PHP 8.5.
+
+### ⚠️ Finding F12 — Laravel 11 cannot be installed at all
+
+All **108** published `laravel/framework` 11.x releases are affected by unresolved
+security advisories. `PKSA-mdq4-51ck-6kdq` alone spans `>=11.0.0,<12.0.0` with no
+patched release in that line — Laravel 11 is end-of-life and will not be fixed.
+Composer's default `block-insecure` audit therefore refuses to install it.
+
+Consequences, both settled here:
+
+1. the matrix's Laravel 11 legs could **never** have gone green;
+2. `composer.json` advertised support for a framework version **no host can
+   securely install**.
+
+`^11.0` is dropped from `require`, and Laravel 11 from the matrix.
+
+⚠️ **This contradicts plan.md and the constitution**, which both state
+`^11 | ^12 | ^13`. The disagreement is reported rather than papered over —
+advertising support for an uninstallable version is a claim, not a capability —
+and amending those documents is a `speckit.plan` matter, not a commit.
+
+**Matrix now**: PHP 8.3 / 8.4 / 8.5 × Laravel 12 / 13 × prefer-lowest /
+prefer-stable. PHP 8.5 is included because both Laravel legs were **run** against
+it locally first.
+
+## M2 — two research decisions amended rather than left to disagree
+
+**R12** said the cycle guard uses `descendantsAndSelf()`. It walks ancestors
+instead, because that method comes from the TRAIT rather than the contract: a host
+implementing `TreeNode` by hand would silently lose the guard, and a missing cycle
+guard corrupts the tree instead of refusing. R12's actual objection — owning
+per-driver SQL — does not apply, since the walk owns none. Trade recorded:
+O(depth) queries rather than one CTE, cheap at the stated scale.
+
+**R6** said `AlpineComponent::make()`. The bridge ships `Js::make()` with the
+controller registering itself on `alpine:init`, because `x-load` never initialised
+the component in the package's own served panel — no error, no console output, the
+page rendering perfectly and the drag doing nothing.
+
+## M3 — a miscount, and my own misattribution of it
+
+`tasks.md` T093 says there are **five** `[pending artifact]` rules. There are
+**four**: R-029, R-031, R-032, R-033.
+
+⚠️ The first correction of this blamed `CLAUDE.md` for the miscount. `CLAUDE.md`
+never states a number — the claim is T093's. Both the note in `AGENTS.md` and T093
+itself now say so. Recorded because it is exactly the failure R-037 names: a
+quoted constraint repeated without checking the artifact it describes.

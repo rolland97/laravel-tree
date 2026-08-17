@@ -17,8 +17,10 @@ mandatory gate before `/speckit-plan` (`.specify/extensions.yml` → `hooks.befo
 `[pending artifact]` — R-029, R-031, R-032, R-033 — have been **re-cited against the real files
 and retagged `[ratified]`**, each naming the specific setting that enforces it.
 
-⚠️ Note for anyone reconciling documents: `CLAUDE.md` says there are **five** `[pending artifact]`
-rules. There were four. The count was wrong when written; the rules themselves were not.
+⚠️ Note for anyone reconciling documents: `tasks.md` **T093** says there are **five**
+`[pending artifact]` rules. There were **four** — R-029, R-031, R-032, R-033. The count was wrong
+when written; the rules themselves were not. (An earlier revision of this note blamed `CLAUDE.md`
+for the miscount, which was itself wrong: `CLAUDE.md` never states a number.)
 
 Each rule is tagged:
 

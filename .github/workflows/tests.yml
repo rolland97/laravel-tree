@@ -26,17 +26,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # ⚠️ The local development platform is PHP 8.5, which this matrix does
-        # NOT cover — T008 specifies 8.3 × 8.4, and adding 8.5 here would assert
-        # combinations (notably Laravel 11 at prefer-lowest) that have not been
-        # run anywhere. Recorded as a known coverage gap rather than closed with
-        # an untested matrix row.
-        php: ['8.3', '8.4']
-        laravel: ['11', '12', '13']
+        # PHP 8.5 is the platform this package is developed on, and both Laravel
+        # legs were run against it locally before being added here rather than
+        # asserted (core 92 / bridge 39 on Laravel 12, full suite on Laravel 13).
+        php: ['8.3', '8.4', '8.5']
+
+        # ⚠️ Laravel 11 is NOT in this matrix, and its absence is deliberate.
+        #
+        # Every one of the 108 published 11.x releases is affected by unresolved
+        # security advisories — PKSA-mdq4-51ck-6kdq alone spans >=11.0.0,<12.0.0
+        # with no patched release in that line. Composer's default `block-insecure`
+        # audit therefore refuses to install laravel/framework 11.x AT ALL, so
+        # these legs could never have gone green and no host could adopt the
+        # package on Laravel 11 anyway.
+        #
+        # ⚠️ This contradicts plan.md and the constitution, which both say
+        # ^11 | ^12 | ^13. The disagreement is reported rather than papered over:
+        # advertising support for a framework version that cannot be installed
+        # securely is a claim, not a capability.
+        laravel: ['12', '13']
         dependency-version: [prefer-lowest, prefer-stable]
         include:
-          - laravel: '11'
-            testbench: '^9.0'
           - laravel: '12'
             testbench: '^10.0'
           - laravel: '13'

@@ -34,24 +34,40 @@ Read in this order:
 
 ## Where the work is
 
-**Nothing is implemented.** Every file in this repository is a specification; there is no `src/`,
-no `composer.json`, no test suite. `T001` creates the first of those, so **`composer test` does
-not exist yet** — do not report it as failing, report that it has not been created.
+**Phases 1–8 are built.** `src/`, `composer.json` and three suites all exist, and the four user
+stories are implemented. Run the checks before trusting any of that:
 
-The next action is `/speckit-implement`, which fires a mandatory readiness gate first.
+```bash
+composer test        # 203 passing across core, bridge and browser
+composer analyse     # PHPStan level 8 over src and config
+composer test:lint   # Pint
+```
 
-⚠️ **Start at `T001` and do not skip to a story.** Phases 1 and 2 are blocking, and Phase 4 is a
-spike that blocks three of the four stories.
+⚠️ **The browser suite needs Playwright.** `npm install && npx playwright install chromium`,
+or every browser test errors rather than fails.
+
+⚠️ **Rebuild the assets after touching `resources/css/` or `resources/js/`.** `npm run build`
+writes the committed `resources/dist/`. A stale committed bundle ships broken code that every
+local check reports as green.
+
+**What is left**: `T096` (`/speckit-analyze`), `T099` and `T100` — see below. Everything else is
+marked `[X]` in `tasks.md`, and every `Watch … fail` gate is recorded in
+`specs/001-tree-v1/checklists/validation-log.md`, including **ten findings** where a guard could
+not be made to fail and had to be investigated.
+
+⚠️ **Read the validation log before adding a guard.** Three of those findings are the same shape:
+correct code protected by two independent mechanisms, where no single mutation can show either is
+needed. Do not "tidy away" one on the evidence that the suite stays green without it.
 
 ## The four things that will cost real time if ignored
 
 Each is stated in full where it belongs; these are the pointers.
 
-1. ⚠️ **Research `R10` is `[open]` and blocks Phases 5–7.** Whether a *package* can serve a
-   Filament panel to a browser driver — and whether that panel serves **compiled CSS** — is
-   unverified. If it cannot, every styling and accessibility assertion in three stories would
-   pass vacuously. `T043`–`T047` answer it. Do not build on the assumption.
-   *→ `specs/001-tree-v1/research.md` R10.*
+1. ✅ **Research `R10` is now `[verified]`** — settled by the `T043`–`T047` spike before any of
+   US2–US4 was built on it. A package *can* serve a Filament panel to a browser, it *does* serve
+   compiled CSS, and axe runs in both colour schemes. ⚠️ Three traps were paid for on the way,
+   including that Testbench takes `getPackageProviders()` verbatim so **Livewire must be listed
+   last**, or every Filament page 500s. *→ `research.md` R10.*
 2. ⚠️ **The blades are a rewrite, not a port.** Every visual class in the source application's
    tree blades is a bare app utility, and none compile from inside `vendor/`. The package owns
    its CSS as `ltree-` prefixed classes in a committed, compiled stylesheet. *→ `AGENTS.md`

@@ -123,6 +123,27 @@ npm, no theme change, and no step a Filament app does not already run"**. The ov
 caught by reading Filament's asset documentation rather than by assuming the principle was
 already true.
 
+### ⚠️ AMENDED during implementation — `Js::make()`, not `AlpineComponent::make()`
+
+The decision above named `AlpineComponent::make()`. The bridge ships `Js::make()` instead, and
+the controller registers itself on `alpine:init`.
+
+**Reason.** `AlpineComponent` relies on Filament's asynchronous `x-load` directive to import the
+module at first use. In the package's own Testbench-served panel that **never initialised the
+component**: no JavaScript error, no console output, the page rendered perfectly, and the drag
+simply did nothing. Both documented attribute spellings were tried. A silent failure is the worst
+outcome for this package specifically — it is the third of its kind on this branch, after R6's own
+unstyled-blade trap and R10's 404-that-passes-every-assertion — so the loading path chosen is the
+one with no moving parts: the file is always present, and it registers itself.
+
+⚠️ It registers on **both** the `alpine:init` event **and** an immediate call, because the script
+order is not ours to control: if Filament has already started Alpine by the time the asset runs,
+that event has been and gone.
+
+**What is unchanged.** esbuild, the committed `resources/dist/` output, and the "no bundler, no
+npm, no theme change" claim in its qualified form. Only the asset TYPE changed — and with it the
+bundle format, which is now `iife` rather than `esm`.
+
 ---
 
 ## R7 — How the Alpine controller receives its translated strings **[verified]**
@@ -246,3 +267,28 @@ with `descendantsAndSelf()`. Hand-rolling it would mean owning per-driver SQL fo
 ⚠️ **Watch the scope of this dependency.** It is required by the *core*, so it is a real
 constraint on every consumer, unlike Filament. If a future version makes it optional, that is a
 `MINOR` change worth having.
+
+### ⚠️ AMENDED during implementation — the cycle guard does NOT use `descendantsAndSelf()`
+
+`MoveNode` answers the cycle question by walking **up** from the destination, using only members
+the `TreeNode` contract itself declares. The decision above said `descendantsAndSelf()`, and this
+records why the implementation departs from it rather than leaving the two to disagree silently.
+
+**Reason.** `descendantsAndSelf()` comes from the trait, not the contract. A host may implement
+`TreeNode` by hand — the contract permits it, and `IsTreeNode` is described as a convenience —
+and calling a trait method from `MoveNode` would make the cycle guard **silently vanish** for
+such a host. A missing cycle guard fails in the unsafe direction: it does not refuse, it corrupts
+the tree.
+
+**Why R12's objection does not apply.** R12 rejected hand-rolling the recursive CTE because it
+would mean owning per-driver SQL "for no gain". The ancestor walk owns **no SQL at all** — it is
+`find()` per level on a tree an admin panel displays. It also detects a PRE-EXISTING cycle in
+stored data instead of looping on it for ever.
+
+**What is unchanged.** The dependency is still required, and still justified: `IsTreeNode`
+supplies the recursive relationships to hosts, and `tests/Core/IsTreeNodeTest.php` proves them
+against real rows. Only the cycle guard's own mechanism changed.
+
+⚠️ The trade accepted: **O(depth) queries instead of one recursive CTE.** For the stated scale —
+"hundreds of nodes, not millions" — that is cheap. For a genuinely deep tree it would not be, and
+that is the condition under which this decision should be revisited.
