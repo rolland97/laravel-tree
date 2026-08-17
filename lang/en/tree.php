@@ -76,6 +76,14 @@ return [
         'cancel' => 'Cancel',
     ],
 
+    /*
+    | ⚠️ TWO empty states, not one (finding F24). `empty` is "there is nothing
+    | here"; `empty_search` is "nothing matches what you typed". A tree that says
+    | the first while a search is active is lying to the actor, and a host with
+    | both sentences previously had to pick one and be wrong in the other state.
+    | Chosen by `treeEmptyMessage()`, never by the view.
+    */
     'empty' => 'Nothing to show.',
+    'empty_search' => 'Nothing matches that search.',
 
 ];

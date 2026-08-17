@@ -1242,3 +1242,74 @@ own suite because nothing here called the action the way a host would. That is t
 release gate earning its keep for the third and fourth time — and an argument that
 R-035's "an API frozen without a consumer is frozen against guesses" was
 understated.
+
+---
+
+## ⚠️ Finding F24 — one empty state where the host had two
+
+**Date: 2026-08-17.** Raised by the consumer during 073 Phase 5.
+
+The view rendered `__('tree::tree.empty')` whenever the displayed set was empty,
+and the package passed the search state nowhere. The consumer has had **two**
+sentences since before this package existed:
+
+```
+no_matches -> 'No categories match your search.'
+empty      -> 'No categories yet. Create the first one.'
+```
+
+Because a frozen assertion pins the search wording, it had to override `empty` with
+it — leaving a genuinely empty tree reading **"No categories match your search."
+with no search active.**
+
+⚠️ **The only regression in that adoption with NO host-side fix**, which is what
+made it the package's problem rather than the host's. Every other loss (badge
+colours, the composed confirmation, the flip preview) is something the host chose
+or can work around; this one it could not.
+
+⚠️ **And the package's own spec already said so.**
+`tests/Bridge/OrphanRenderingTest.php` quoted spec.md § Edge Cases in a comment —
+*"A search is active and matches nothing. The tree must state THAT rather than
+appear empty and broken"* — and then asserted the generic `'Nothing to show'`. The
+requirement was right, the string contradicted it, and the assertion was pinning
+the contradiction. That test now asserts the search wording, which is the
+assertion finally agreeing with the sentence above it.
+
+**Red observed**, 6 of 6 in the new `tests/Bridge/EmptyStateTest.php`:
+
+```
+Method Rolland\Tree\Tests\Fixtures\Panel\CategoryTreePage::treeEmptyMessage does not exist.
+```
+
+**Fixed** with `treeEmptyMessage()` on the trait, choosing between `empty` and the
+new `empty_search`, and the view rendering the message the page chose rather than a
+key of its own. ⚠️ It reuses the same `trim()` the search path uses — two different
+answers to "is a search active?" in one class is how they drift.
+
+New public surface: `treeEmptyMessage()` and `tree.refused`-adjacent
+`tree.empty_search`. Suite after: **270 passed** (264 + 6), PHPStan level 8 clean,
+Pint clean.
+
+---
+
+## Also promoted to the contract in this pass
+
+The **confirmation path's ORDER** — `visibleQuery()` → `authorizeTreeMove()` →
+`confirmationFor()` once, only from `placeNode()` → then `$pendingMove` is set.
+
+⚠️ The consumer depends on that order to satisfy three frozen assertions
+(`pendingMove['direction']`, and its own `open-modal` / `close-modal` dispatches),
+which it does by **aliasing the trait's methods** rather than asking for PA-6:
+
+```php
+use InteractsWithTree { placeNode as private packagePlaceNode; … }
+```
+
+⚠️ **PA-6 was therefore never needed, and PA-1 is the reason** — a base class
+cannot be aliased, so the amendment requested to fix an inheritance problem
+incidentally supplied the extensibility the confirmation slot was going to be
+amended for. Proved with a throwaway probe before ~400 lines were written on it
+(R-039).
+
+Promoting the order is the same fix PA-5 made for `matchesSearch()`: a host
+depending on an undocumented internal is a host a patch release can break.

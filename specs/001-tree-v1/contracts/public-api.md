@@ -280,6 +280,7 @@ implements or overrides:
 | `confirmationFor(Model $node, ?TreeNode $newParent): ?string` | no | Return a warning to require confirmation; `null` applies immediately |
 | `authorizeTreeMove(Model $node, ?TreeNode $newParent): bool` | no | ⚠️ The host's **permission** rule. Defaults to `true` |
 | `matchesSearch(Model $node, string $term): bool` | no | Which columns a quick search looks in. Defaults to the tie-breaker |
+| `treeEmptyMessage(): string` | no | Which empty-state sentence to show. Chooses on whether a search is active |
 | `treeStrings(): array` | no | Override the announcement templates |
 
 Public Livewire entry points on the page: `placeNode(...)`, `confirmPendingMove()`,
@@ -288,6 +289,32 @@ Public Livewire entry points on the page: `placeNode(...)`, `confirmPendingMove(
 ⚠️ **`placeNode()` re-runs the host's `visibleQuery()` on the committing call**, and — since
 PA-2 — asks `authorizeTreeMove()` there too, regardless of any check made for presentation.
 The keyboard refuses a pick-up early as a *courtesy*; that refusal is not the guard.
+
+⚠️ **PROMISED ORDER of the confirmation path** — ⚠️ AMENDMENT (during implementation,
+001-tree-v1), requested by the first consumer:
+
+1. `placeNode()` resolves the node and destination through `visibleQuery()`;
+2. it asks `authorizeTreeMove()`;
+3. it calls `confirmationFor()` **exactly once**, and only from here — never from
+   `confirmPendingMove()` or `commit()`;
+4. only then does it set `$pendingMove`.
+
+**This ordering is part of the contract, not an implementation detail.** A host that needs
+structured confirmation data — or needs to dispatch its own modal events — can wrap
+`placeNode()` and `confirmPendingMove()` with trait aliasing, memoise what it needs inside
+`confirmationFor()`, and add its own keys to `$pendingMove` afterwards:
+
+```php
+use InteractsWithTree {
+    placeNode as private packagePlaceNode;
+    confirmPendingMove as private packageConfirmPendingMove;
+}
+```
+
+⚠️ **That pattern is why PA-6 was not needed**, and it works only because PA-1 made the tree a
+trait — a base class cannot be aliased. It was proved end to end in the consumer before being
+relied on. Promoting the order to the contract is the same fix PA-5 made for `matchesSearch()`:
+a host depending on an undocumented internal is a host a patch release can break.
 
 #### `authorizeTreeMove()` — ⚠️ AMENDMENT (during implementation, 001-tree-v1), **security**
 

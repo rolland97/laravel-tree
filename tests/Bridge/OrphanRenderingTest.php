@@ -102,7 +102,14 @@ it('keeps an orphan a member of its real group for placement', function () {
 it('states that nothing matches rather than rendering an empty broken tree', function () {
     // spec.md § Edge Cases: "A search is active and matches nothing. The tree must
     // state that rather than appear empty and broken." Untested until the critique.
+    //
+    // ⚠️ This asserted the generic 'Nothing to show' until finding F24. It now
+    // asserts the SEARCH wording, and that is the assertion finally saying what
+    // the spec sentence above it always said: "state THAT" means state that
+    // nothing MATCHED, not that the tree is empty — which, with a search active
+    // and nodes present, was untrue. The requirement did not change; the string
+    // stopped contradicting it.
     Livewire::test(CategoryTreePage::class)
         ->set('treeSearch', 'no-such-node-anywhere')
-        ->assertSee('Nothing to show');
+        ->assertSee('Nothing matches that search.');
 });

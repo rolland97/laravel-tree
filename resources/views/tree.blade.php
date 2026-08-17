@@ -51,7 +51,7 @@
         @php($roots = $this->treeDisplayRoots())
 
         @if (count($roots) === 0)
-            <p class="ltree-empty">{{ __('tree::tree.empty') }}</p>
+            <p class="ltree-empty">{{ $this->treeEmptyMessage() }}</p>
         @else
             {{--
                 ⚠️ role="tree" and every treeitem's role/tabindex/aria-* sit on the

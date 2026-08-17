@@ -76,6 +76,30 @@ trait InteractsWithTree
     protected bool $treeSearchCacheResolved = false;
 
     /**
+     * What to say when the tree draws no rows.
+     *
+     * ⚠️ TWO sentences, not one (finding F24). "There is nothing here" and
+     * "nothing matches what you typed" are different facts, and a tree that says
+     * the first while a search is active is simply lying to the actor — a
+     * first-time user and someone who mistyped a filter need opposite guidance.
+     *
+     * The package rendered a single `empty` key and passed the search state
+     * nowhere, so a host with both sentences had to pick one and be wrong in the
+     * other state. Raised by the first consumer, which has had both strings since
+     * before this package existed, and which had **no host-side fix available** —
+     * that is what made it the package's problem rather than the host's.
+     *
+     * ⚠️ Uses the same `trim()` the search path uses. Two different answers to "is
+     * a search active?" inside one class is exactly how they drift apart.
+     */
+    public function treeEmptyMessage(): string
+    {
+        return trim($this->treeSearch) === ''
+            ? (string) __('tree::tree.empty')
+            : (string) __('tree::tree.empty_search');
+    }
+
+    /**
      * The package's tree view.
      *
      * ⚠️ **A METHOD, not a `$view` property, and this is not a style choice — it is
