@@ -52,6 +52,13 @@ function ltree(strings = {}, startCollapsed = false) {
         collapsed: {},
 
         /**
+         * Which row held DOM focus when our own morph began, if any (PA-14).
+         *
+         * ⚠️ `null` is the normal case AND the safe one — see restoreFocusAfterMorph().
+         */
+        focusWasOnRow: null,
+
+        /**
          * The keyboard hold. ⚠️ ALL of this is client state, and NONE of it reaches
          * the server until the drop (T087). A call per arrow press would write one
          * audit row per keystroke for what the user thinks of as one move.
@@ -111,7 +118,59 @@ function ltree(strings = {}, startCollapsed = false) {
                     // certainly not a reason to drop what the user is carrying.
                     return
                 }
+
+                // ⚠️ Recorded BEFORE the DOM changes (PA-14): once morphdom has
+                // replaced the row, the answer to "did a row have focus" is gone.
+                const focused = document.activeElement
+
+                this.focusWasOnRow = focused instanceof Element
+                    && this.$el.contains(focused)
+                    && focused.matches('[data-ltree-key]')
+                    ? focused.dataset.ltreeKey
+                    : null
             })
+
+            window.Livewire.hook('morphed', ({ component }) => {
+                if (!ours || component?.id !== ours) {
+                    return
+                }
+
+                this.restoreFocusAfterMorph()
+            })
+        },
+
+        /**
+         * Put focus back on the row that had it, if the morph took it away.
+         *
+         * ⚠️ Every write goes through Livewire, so the rows are morphed after every
+         * move. morphdom replaces the focused row, focus falls to `<body>`, and a
+         * keyboard user is returned to the top of the document after each reorder —
+         * having to tab all the way back in to make a second one. The roving tabindex
+         * still SAID a row owned the tab stop; nothing held the DOM focus.
+         *
+         * ⚠️ Restored ONLY when a ROW had focus and lost it. Two ways to write this
+         * wrong, and both are worse than the defect: focusing on every morph would
+         * yank the actor out of a row action, a modal or the search box, and focusing
+         * `focusedId` unconditionally would pull focus INTO a tree the actor had never
+         * entered — a host polling a notification bell would do it every thirty
+         * seconds.
+         */
+        restoreFocusAfterMorph() {
+            const key = this.focusWasOnRow
+            this.focusWasOnRow = null
+
+            if (key === null) {
+                return
+            }
+
+            const active = document.activeElement
+
+            if (active instanceof Element && active !== document.body && this.$el.contains(active)) {
+                // Focus stayed inside the tree — it is the actor's now, not ours.
+                return
+            }
+
+            this.focusRow(this.rowFor(key))
         },
 
         // ── Reading the rendered tree ────────────────────────────────────────
@@ -237,12 +296,16 @@ function ltree(strings = {}, startCollapsed = false) {
 
             // A node may not be dropped inside its own subtree; the server refuses
             // it anyway, but refusing here avoids a pointless round trip.
-            const dragged = this.rowFor(this.draggingId)
-            if (dragged && dragged.parentElement?.parentElement?.contains(row)) {
-                const branch = dragged.closest('[data-ltree-branch]')
-                if (branch && branch.contains(row)) {
-                    return null
-                }
+            //
+            // ⚠️ Asked of the dragged node's own GROUP (PA-10). It used to climb two
+            // parentElements to a `.ltree-branch` wrapper, which is both a structural
+            // assumption about markup and — now that the wrapper is gone — wrong. The
+            // group is what actually holds the subtree, and it is already addressed by
+            // key everywhere else in this controller.
+            const subtree = this.childrenContainerOf(this.draggingId)
+
+            if (subtree && subtree.contains(row)) {
+                return null
             }
 
             const box = row.getBoundingClientRect()
@@ -298,7 +361,41 @@ function ltree(strings = {}, startCollapsed = false) {
          * so; treating a missing key as CLOSED would break `toggleBranch()` the
          * other way, because reopening writes an explicit `false`.
          */
+        /**
+         * Is a search narrowing the tree right now?
+         *
+         * ⚠️ Read from `$wire`, which is REACTIVE, rather than from a data attribute:
+         * a binding that read the DOM would not re-run when the search changed, so the
+         * reveal would arrive a keystroke late or not at all. `treeSearch` is this
+         * trait's own public property, not a private dependency on a host.
+         */
+        get searching() {
+            return String(this.$wire?.treeSearch ?? '').trim() !== ''
+        },
+
+        /**
+         * ⚠️ FOUR states, not three (PA-8, then PA-11):
+         *
+         *   1. a search is active    -> show everything the server left standing;
+         *   2. the actor closed it   -> closed;
+         *   3. the actor opened it   -> open;
+         *   4. nobody has touched it -> the host's default.
+         *
+         * ⚠️ The search outranks the actor's own collapse, and it must. The server has
+         * already REMOVED every non-matching row and kept a match's ancestors so it
+         * stays reachable — so a branch left closed hides the very rows the actor
+         * searched for. Before this, a match below the root was in the DOM and
+         * invisible: a search that found things and showed you none of them.
+         *
+         * ⚠️ It REVEALS rather than expands. `collapsed` is not rewritten, so clearing
+         * the box returns the tree to exactly the shape the actor had; expanding for
+         * real would leave a large tree fully open after one search.
+         */
         isExpanded(key) {
+            if (this.searching) {
+                return true
+            }
+
             if (this.collapsed[key] === undefined) {
                 return !this.startCollapsed
             }
@@ -435,15 +532,38 @@ function ltree(strings = {}, startCollapsed = false) {
         },
 
         pickUp(row) {
-            // A courtesy refusal only. The REAL guard is placeNode() re-checking
-            // the host's authorization on the committing call.
-            if (row.dataset.ltreeLocked === 'true') {
-                this.say('refused', { name: this.nameOf(row.dataset.ltreeKey) })
+            const key = row.dataset.ltreeKey
+
+            // ⚠️ A courtesy refusal only. The REAL guard is placeNode() re-checking
+            // the host's authorization on the committing call — this markup is
+            // client-side and an actor can edit it.
+            //
+            // ⚠️ Reads `immovable`, NOT `locked` (PA-13). `locked` says the node may
+            // not RECEIVE children; asking it here refused to MOVE a node merely
+            // closed to new ones, and left an actor with no permission picking rows up
+            // freely until the server said no at the far end of a round trip.
+            if (row.dataset.ltreeImmovable === 'true') {
+                this.say('refused', { name: this.nameOf(key) })
 
                 return
             }
 
             const siblings = this.siblingRowsOf(row).map((r) => r.dataset.ltreeKey)
+
+            // ⚠️ Refused BEFORE any hold begins (PA-12). A group of one has nowhere to
+            // reorder to; the package used to accept the pick-up, announce "picked up,
+            // 1 of 1", and say so only when an arrow key was pressed — inviting a move
+            // that could not exist.
+            //
+            // ⚠️ Counts the siblings the actor can SEE, like everything else here. A
+            // node whose only sibling is hidden from this actor IS an only child to
+            // them, and behaving otherwise discloses that the hidden row exists
+            // (AGENTS.md R-015).
+            if (siblings.length <= 1) {
+                this.say('only_child', { name: this.nameOf(key), position: 1, total: siblings.length })
+
+                return
+            }
 
             this.heldId = row.dataset.ltreeKey
             this.heldSiblings = siblings
@@ -481,15 +601,15 @@ function ltree(strings = {}, startCollapsed = false) {
             }
         },
 
+        /**
+         * ⚠️ There is no `total <= 1` branch here any more (PA-12). It announced
+         * `only_child` on the first arrow press, and it is now unreachable: `pickUp()`
+         * refuses that node before a hold exists. A branch that cannot be entered is
+         * not a safety net — it is dead code that reads like one, and keeping it would
+         * mean two producers of one announcement, one of them untestable.
+         */
         moveHeld(delta) {
             const total = this.heldSiblings.length
-
-            if (total <= 1) {
-                this.say('only_child', this.heldContext())
-
-                return
-            }
-
             const next = this.heldIndex + delta
 
             if (next < 0) {

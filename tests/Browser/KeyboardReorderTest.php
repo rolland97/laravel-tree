@@ -348,11 +348,17 @@ it('keeps the announcement through a re-render the package did not initiate', fu
 it('refuses a pick-up the host does not permit, and begins no hold', function () {
     // The keyboard refuses early as a COURTESY; the real guard is placeNode's
     // re-check on the committing call, which the bridge suite proves separately.
+    //
+    // ⚠️ `data-ltree-immovable`, not `data-ltree-locked` (PA-13). This test used to
+    // set the LOCKED flag, which answers "may this node receive children" — so the
+    // package's own guard was asserting the conflation rather than catching it. The
+    // behaviour it checks is unchanged; the attribute it drives is the one that
+    // actually means "this actor may not move this".
     $page = visit('/admin/category-tree');
 
     $locked = $page->script(
         "(() => { const row = document.querySelector('[data-ltree-key=\"{$this->delta->id}\"]');"
-        .' row.setAttribute("data-ltree-locked", "true"); row.focus(); return true; })()'
+        .' row.setAttribute("data-ltree-immovable", "true"); row.focus(); return true; })()'
     );
 
     sendKey($page, ' ');

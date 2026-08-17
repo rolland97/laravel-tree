@@ -1487,3 +1487,105 @@ So the amendment lands as **documentation** (PA-9), which is also what PA-5 turn
 to be. ⚠️ The measurable cost of the wrong diagnosis: a throwing narrowing helper
 called from six slots in the consumer, plus this second investigation. What made it
 expensive was that the false half foreclosed work — exactly the asymmetry R-037 names.
+
+---
+
+## PA-10…PA-14 — five gaps one consumer's browser suite found
+
+⚠️ **All five came from the SAME source**: the consumer's adoption's T048, where 24 of 26
+browser cases stayed red after a mechanical selector re-point. None of them is
+visible to this package's own suite as it was written, and three are regressions
+against behaviour the source application has shipped for months (`AGENTS.md`
+R-040: where this package and the running application disagree, the application is
+presumed right).
+
+### ⚠️ Finding F29 — `role="tree"` owned generic divs, and axe said nothing
+
+Every row and its children sat inside a `.ltree-branch` wrapper, so the rows were
+GRANDchildren of the tree. ARIA names `treeitem` and `group` as the tree's required
+owned elements.
+
+⚠️ **The package's own accessibility pass proved nothing about it.** axe's
+required-children rule walks ancestors rather than demanding a direct child, so
+`assertNoAccessibilityIssues()` was green with the wrapper in place — R-018's
+lesson about announcements, arriving through the DOM instead. What found it was a
+consumer whose frozen selectors read `[role="tree"] > [role="treeitem"]` and
+stopped matching, which is also the argument for fixing the STRUCTURE rather than
+re-pointing those selectors: the consumer's markup expectation was right.
+
+The guard walks the DOM (`tests/Bridge/AriaStructureTest.php`) rather than matching
+markup, because a string search for the class would go green the moment it was
+renamed while the structure stayed wrong. Watched red: 3 rows at 3 depths.
+
+### ⚠️ Finding F30 — the search and the collapse state never met
+
+The server narrows the rows and deliberately keeps a match's ANCESTORS so it stays
+reachable. The client decides which branches are open and knew nothing about the
+search. Composed: **a match inside a closed branch was in the DOM and invisible.**
+
+⚠️ **This did not arrive with PA-8.** Any actor who had closed a branch before
+typing got the same nothing, on any host, since the search shipped —
+collapsed-by-default merely made it the first thing a user meets. A defect that
+needed two features to become obvious is exactly the kind a package's own suite
+cannot find, because each feature's tests are written alone.
+
+⚠️ The fix REVEALS rather than expands: `collapsed` is not rewritten, so clearing
+the box returns the tree to the shape the actor had. Both directions are guarded —
+a branch the actor opened during a search stays open afterwards.
+
+### ⚠️ Finding F31 — the keyboard invited moves it could not finish
+
+Two refusals, both courtesies, both missing:
+
+1. **An only child could be picked up.** It announced "picked up, 1 of 1" and said
+   `only_child` only when an arrow key was pressed. The announcement existed; the
+   moment it was useful — before the actor commits to a move — it was silent.
+2. **`data-ltree-locked` was answering the wrong question.** It comes from
+   `isValidTreeTarget()`, "may this node RECEIVE children", and the pick-up used it
+   as "may this actor MOVE this node". So a view-only actor picked rows up freely
+   and was refused at the far end of a round trip, while a node merely closed to new
+   children could not be reordered at all.
+
+⚠️ **The package's own guard was asserting the conflation.** `KeyboardReorderTest`
+set `data-ltree-locked` and expected a refusal — a test written from the code
+rather than from the question, so it locked the defect in rather than catching it.
+Re-pointed to `data-ltree-immovable`.
+
+⚠️ `moveHeld()`'s `only_child` branch was REMOVED rather than kept as a fallback:
+with the pick-up refused it cannot be reached, and dead code that reads like a
+guard is worse than none.
+
+### ⚠️ Finding F32 — the morph hook was a no-op, and focus fell to `<body>`
+
+Every write goes through Livewire, so the rows morph after every move; morphdom
+replaced the focused row and a keyboard user was returned to the top of the
+document after each reorder. The roving tabindex still SAID a row owned the tab
+stop.
+
+⚠️ **The hook existed.** It checked which component had morphed and then had no
+body at all — the foreign-morph half was right and the own-morph half was never
+written. A reviewer reading it would see a considered guard.
+
+⚠️ **A bare `$wire.$refresh()` does not reproduce it** — morphdom keeps an
+untouched element, so that case passes with the fix reverted. The discriminating
+guard performs a REAL keyboard move and then asks where focus is. Recorded because
+the weaker case is the one a person would naturally write first.
+
+⚠️ Focus is restored only when a ROW had it and lost it. Focusing on every morph
+would yank the actor out of a row action or the search box; focusing `focusedId`
+unconditionally would pull focus INTO a tree they never entered, every time a host
+polled a notification bell.
+
+### Watched red, all four behaviours at once
+
+| Mutation | Red |
+|---|---|
+| `searching` always false | 4 of 6 search-reveal cases |
+| only-child refusal removed from `pickUp()` | 2 pick-up cases + the re-pointed `only child` announcement case |
+| `pickUp()` reads `locked` again | the immovable case, the "cannot receive children" case, the re-pointed host-refusal case |
+| `restoreFocusAfterMorph()` neutered | the after-a-real-move case only |
+
+11 red in total, and the two that stayed green under their own mutation are
+recorded above as non-discriminators rather than left to look like coverage.
+
+Suite after: **311 passed / 636 assertions**, PHPStan level 8 clean, Pint clean.

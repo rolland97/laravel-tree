@@ -284,6 +284,7 @@ implements or overrides:
 | `treeStrings(): array` | no | Override the announcement templates |
 | `treeAccessibleName(): string` | no | ⚠️ The **tree's own** accessible name. Defaults to the navigation label |
 | `treeBranchesStartCollapsed(): bool` | no | Do branches start closed? Defaults to `false` — open, as before the slot existed |
+| `canMoveNode(Model $node): bool` | no | ⚠️ May THIS ACTOR move this node? A keyboard **courtesy**; defaults to `true` |
 
 Public Livewire entry points on the page: `placeNode(...)`, `confirmPendingMove()`,
 `cancelPendingMove()`.
@@ -485,6 +486,131 @@ browser cases red; the two that stay green are the default-host regression guard
 axe pass, and both are meant to.
 
 **Migration**: none. The default is `false`, which is what every host had.
+
+#### The rendered structure — ⚠️ AMENDMENT (during implementation, 001-tree-v1), **accessibility**
+
+A `treeitem` is a **direct child** of the `tree` or of a `group`:
+
+```html
+<div role="tree">
+  <div role="treeitem" data-ltree-key="1">…</div>
+  <div role="group" data-ltree-children-of="1">
+    <div role="treeitem" data-ltree-key="2">…</div>
+  </div>
+</div>
+```
+
+**What was wrong.** Every row and its children were wrapped in a `.ltree-branch` div,
+so `role="tree"` owned generic divs and the rows were its GRANDchildren. ARIA names
+`treeitem` and `group` as the tree's required owned elements; an unroled element in
+between is neither (the consumer's adoption T048 — **PA-10**).
+
+⚠️ **axe does not report this, which is why it shipped.** The package's own
+`assertNoAccessibilityIssues()` passed with the wrapper in place, because axe's
+required-children check walks ANCESTORS rather than demanding a direct child. An
+automated pass proved nothing here — `AGENTS.md` R-018's lesson about announcements,
+arriving through the DOM instead. It was found by a consumer whose frozen selectors
+were written `[role="tree"] > [role="treeitem"]` and simply stopped matching.
+
+⚠️ **The group remains a SIBLING of its row, not a child of it.** A `treeitem` may own
+a `group`, but nesting one inside the focusable row would put the whole subtree into
+that row's accessible name — the R-014 defect this package was extracted to fix.
+
+⚠️ `data-ltree-branch` is **gone**, and the drag's self-descendant check now asks the
+dragged node's own `group` instead of climbing to a wrapper. Guarded by
+`tests/Bridge/AriaStructureTest.php`, which WALKS THE DOM: a string search for the
+class would have gone green the moment it was renamed while the structure stayed wrong.
+
+**Migration**: a host that wrote CSS against `.ltree-branch` loses it. `.ltree-children`
+now carries the flex column it provided.
+
+#### A search reveals what it matched — ⚠️ AMENDMENT (during implementation, 001-tree-v1)
+
+**What was wrong.** The two halves of the search were built by different sides and
+never met. The server narrows the rows and keeps a match's ancestors so it stays
+reachable; the client decides which branches are open and knew nothing about the
+search. So a match inside a closed branch was present in the DOM and **invisible** — a
+search that found things and showed you none of them (the consumer's adoption T048 — **PA-11**).
+
+⚠️ **Not only a `treeBranchesStartCollapsed()` problem.** Any actor who had closed a
+branch before typing got the same nothing, on any host, since the search shipped.
+PA-8 made it the *first* experience rather than an occasional one, which is how it
+was finally noticed.
+
+`isExpanded()` now answers **four** states: a search is active → shown; the actor
+closed it → closed; the actor opened it → open; untouched → the host's default.
+
+⚠️ **It REVEALS rather than expands.** `collapsed` is not rewritten, so clearing the
+search returns the tree to exactly the shape the actor had. Expanding for real would
+leave a large tree fully open after one search.
+
+⚠️ The controller reads `$wire.treeSearch`, which is reactive; a data attribute would
+not re-run the bindings that read it, and the reveal would arrive a keystroke late or
+not at all.
+
+**Migration**: none.
+
+#### What the keyboard refuses to pick up — ⚠️ AMENDMENT (during implementation, 001-tree-v1)
+
+Two refusals, both **courtesies**. The guards are unchanged and server-side:
+`commit()` reports an only-child reorder and writes nothing, and `authorizeTreeMove()`
+re-decides permission on every committing path.
+
+**PA-12 — an only child is refused before the hold begins.** It could previously be
+picked up and announced as *"picked up, 1 of 1"*, and heard `only_child` only when an
+arrow key was pressed — an invitation to start a move that cannot exist. The refusal
+counts the siblings the actor can SEE, like everything else here: a node whose only
+sibling is hidden from this actor IS an only child to them, and behaving otherwise
+discloses that the hidden row exists (R-015).
+
+⚠️ `moveHeld()`'s `only_child` branch was **removed**, not left as a safety net: with
+the pick-up refused it is unreachable, and dead code that reads like a guard is worse
+than no guard. `only_child` now has two producers — `pickUp()` and `commit()`.
+
+**PA-13 — a host slot for movability**, rendered as `data-ltree-immovable`:
+
+```php
+protected function canMoveNode(Model $node): bool;   // defaults to true
+```
+
+The only early refusal the package had was driven by `data-ltree-locked`, which comes
+from `isValidTreeTarget()` — *"may this node RECEIVE children"*. Using it to answer
+*"may this actor MOVE this node"* had two consequences, both wrong: a view-only actor
+picked rows up freely and was refused at the far end of a round trip, and a node merely
+closed to new children could not be reordered at all. The two attributes now answer the
+two questions, and the package's own guard — which had been asserting the conflation —
+was re-pointed to the new one.
+
+⚠️ **A host implementing this and not `authorizeTreeMove()` has decorated its tree, not
+protected it.** The markup is client-side and an actor can edit it.
+
+**Migration**: a host relying on `data-ltree-locked` to prevent a pick-up must implement
+`canMoveNode()`. Nothing else moves.
+
+#### Focus survives the tree's own re-render — ⚠️ AMENDMENT (during implementation, 001-tree-v1)
+
+**What was wrong.** Every write goes through Livewire, so the rows are morphed after
+every move. morphdom replaced the focused row, focus fell to `<body>`, and a keyboard
+user was returned to the top of the document after each reorder — having to tab all the
+way back in to make a second one. The roving tabindex still *said* a row owned the tab
+stop; nothing held the DOM focus (the consumer's adoption T048 — **PA-14**).
+
+⚠️ **The morph hook existed and did nothing.** It checked which component had morphed
+and then had no body at all. The check was written for a real defect — a host's
+notification poll abandoning a held node — and the "do nothing on a foreign morph" half
+is right; nothing was ever done on OUR morph either.
+
+⚠️ **Focus is restored only if a ROW had it and lost it.** Two ways to write this wrong,
+both worse than the defect: focusing on every morph yanks the actor out of a row action,
+a modal or the search box; focusing `focusedId` unconditionally pulls focus INTO a tree
+the actor never entered, which a host polling a notification bell would do every thirty
+seconds.
+
+⚠️ A bare `$wire.$refresh()` does **not** reproduce the defect — morphdom keeps an
+untouched element — so the guard that matters is the one that performs a real keyboard
+move and then asks where focus is.
+
+**Migration**: none.
 
 #### Typing a host's slots — ⚠️ AMENDMENT (during implementation, 001-tree-v1), documentation only
 

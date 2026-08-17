@@ -23,11 +23,6 @@
     gap: 0.125rem;
 }
 
-.ltree-branch {
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-}
 
 .ltree-row {
     display: flex;
@@ -114,6 +109,10 @@
 }
 
 .ltree-children {
+    /* ⚠️ The flex column the `.ltree-branch` wrapper used to provide (PA-10). */
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
     padding-inline-start: 1.25rem;
 }
 

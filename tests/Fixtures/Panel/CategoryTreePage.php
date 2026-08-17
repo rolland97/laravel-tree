@@ -44,6 +44,17 @@ final class CategoryTreePage extends TreePage
      */
     public static string $moveAuthorization = 'allow';
 
+    /**
+     * A node this host says this actor may not MOVE (PA-13).
+     *
+     * ⚠️ A THIRD switch, beside `$hideBravo` (visibility) and `$moveAuthorization`
+     * (permission at commit time). They answer three different questions and a
+     * fixture driving them from one could not catch a package that conflated any two
+     * — which is exactly the defect PA-13 closes, where "may this receive children"
+     * was answering "may this actor move it".
+     */
+    public static ?string $immovableName = null;
+
     protected function visibleQuery(): Builder
     {
         $query = Category::query()->where('is_visible', true);
@@ -110,6 +121,15 @@ final class CategoryTreePage extends TreePage
             'throw' => throw new AuthorizationException('This actor may not update that node.'),
             default => true,
         };
+    }
+
+    /**
+     * The host's PRESENTATION-time answer (PA-13) — a courtesy, not the guard.
+     * `authorizeTreeMove()` above is what actually decides a commit.
+     */
+    protected function canMoveNode(Model $node): bool
+    {
+        return self::$immovableName === null || $node->name !== self::$immovableName;
     }
 
     protected function confirmationFor(Model $node, ?TreeNode $newParent): ?string

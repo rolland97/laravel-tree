@@ -266,6 +266,36 @@ trait InteractsWithTree
     }
 
     /**
+     * May this actor move THIS node at all? Asked to decide the keyboard's early
+     * refusal; defaults to `true`.
+     *
+     * ⚠️ Package amendment PA-13. The only early refusal this package had was driven
+     * by `isValidTreeTarget()`, rendered as `data-ltree-locked` — and that answers
+     * "may this node RECEIVE children", which is a different question. Using one to
+     * answer the other had two consequences, both wrong in a direction nobody asked
+     * for: a view-only actor could pick a row up and was refused at the far end of a
+     * round trip, and a node merely closed to new children could not be reordered at
+     * all.
+     *
+     * ⚠️ **A COURTESY, never the guard.** `authorizeTreeMove()` re-decides on every
+     * committing path and is the security boundary; this exists so an actor is not
+     * invited to start a move that cannot finish. A host that implements this and not
+     * `authorizeTreeMove()` has decorated its tree, not protected it — the markup is
+     * client-side and an actor can edit it.
+     *
+     * ⚠️ Defaults to `true` for the same reason `authorizeTreeMove()` does: the
+     * package cannot know a host's permissions, and a default of `false` would give
+     * every existing host a tree that refuses every keyboard move.
+     *
+     * ⚠️ A host types this slot to its own model the way it types the others — with
+     * a `@param` docblock, per the contract's note on typing host slots.
+     */
+    protected function canMoveNode(Model $node): bool
+    {
+        return true;
+    }
+
+    /**
      * The announcement templates handed to the Alpine controller.
      *
      * ⚠️ Passed as the ARGUMENT to the x-data factory (research R7), so translation
@@ -895,6 +925,11 @@ trait InteractsWithTree
     public function treeLeafSlot(Model $node): ?View
     {
         return $this->leafSlot($node);
+    }
+
+    public function treeCanMoveNode(Model $node): bool
+    {
+        return $this->canMoveNode($node);
     }
 
     /**
