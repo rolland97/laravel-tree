@@ -17,9 +17,18 @@
 const NEST_BAND_START = 0.25
 const NEST_BAND_END = 0.75
 
-function ltree(strings = {}) {
+function ltree(strings = {}, startCollapsed = false) {
     return {
         strings,
+
+        /**
+         * Whether a branch nobody has touched is closed (PA-8).
+         *
+         * ⚠️ The host's answer, passed as the second argument for the same reason
+         * the strings are the first: the server already knows it. The default is
+         * `false`, which is what every host got before the slot existed.
+         */
+        startCollapsed,
 
         /** The row that owns the tree's single tab stop. */
         focusedId: null,
@@ -33,7 +42,13 @@ function ltree(strings = {}) {
         /** The node being dragged with a pointer, if any. */
         draggingId: null,
 
-        /** Branch keys the user has closed. Client state; the server has no opinion. */
+        /**
+         * Branch keys the user has EXPLICITLY opened (`false`) or closed (`true`).
+         * Client state; the server has no opinion about it.
+         *
+         * ⚠️ A key that is absent means "untouched", and that is the case the host's
+         * `startCollapsed` answers — see `isExpanded()`.
+         */
         collapsed: {},
 
         /**
@@ -275,7 +290,19 @@ function ltree(strings = {}) {
 
         // ── Keyboard traversal (US3) ─────────────────────────────────────────
 
+        /**
+         * ⚠️ Three states, not two (PA-8): a key the actor has opened, a key the
+         * actor has closed, and a key nobody has touched — which is where the
+         * host's default applies. Reading `collapsed[key] !== true` collapsed the
+         * third case into "open" and left a host that starts closed unable to say
+         * so; treating a missing key as CLOSED would break `toggleBranch()` the
+         * other way, because reopening writes an explicit `false`.
+         */
         isExpanded(key) {
+            if (this.collapsed[key] === undefined) {
+                return !this.startCollapsed
+            }
+
             return this.collapsed[key] !== true
         },
 

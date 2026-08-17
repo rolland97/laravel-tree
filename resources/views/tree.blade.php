@@ -10,7 +10,12 @@
 --}}
 <x-filament-panels::page>
     <div
-        x-data="ltree(@js($this->treeStrings()))"
+        {{--
+            ⚠️ The initial collapse state is the SECOND argument (PA-8), passed the
+            same way the strings are: server-side, host-controlled, no $wire round
+            trip for something the server already knows.
+        --}}
+        x-data="ltree(@js($this->treeStrings()), @js($this->treeBranchesStartCollapsed()))"
         x-on:keydown="onTreeKeydown($event)"
         x-on:focusout="onTreeFocusOut($event)"
         class="ltree-root"
@@ -57,7 +62,13 @@
                 ⚠️ role="tree" and every treeitem's role/tabindex/aria-* sit on the
                 SAME element — the one that actually takes focus (AGENTS.md R-013).
             --}}
-            <div class="ltree-tree" role="tree" aria-label="{{ static::getNavigationLabel() }}">
+            {{--
+                ⚠️ `treeAccessibleName()`, NOT `getNavigationLabel()` (PA-7). A
+                navigation item answers "where am I going"; this answers "what is
+                this control". They were the same string, so a host with two could
+                only have one — see the slot's own note.
+            --}}
+            <div class="ltree-tree" role="tree" aria-label="{{ $this->treeAccessibleName() }}">
                 @foreach ($roots as $node)
                     @include('tree::tree-branch', [
                         'node' => $node,

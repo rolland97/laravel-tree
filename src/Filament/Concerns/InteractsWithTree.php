@@ -6,7 +6,7 @@ namespace Rolland\Tree\Filament\Concerns;
 
 use DomainException;
 use Filament\Notifications\Notification;
-use Filament\Pages\BasePage;
+use Filament\Pages\Page;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -40,7 +40,13 @@ use Rolland\Tree\Support\TreeColumns;
  *
  * @property-read string $treeSearch
  *
- * @mixin BasePage
+ * ⚠️ `@mixin Filament\Pages\Page`, not `BasePage`. `getNavigationLabel()` — which
+ * `treeAccessibleName()` defaults to — is declared on `Page`, and both host shapes
+ * descend from it (`Filament\Resources\Pages\Page extends Filament\Pages\Page`).
+ * The requirement is not new; the view has always called that method. It was simply
+ * unanalysable while it lived in a blade.
+ *
+ * @mixin Page
  */
 trait InteractsWithTree
 {
@@ -97,6 +103,56 @@ trait InteractsWithTree
         return trim($this->treeSearch) === ''
             ? (string) __('tree::tree.empty')
             : (string) __('tree::tree.empty_search');
+    }
+
+    /**
+     * The accessible name of the TREE ITSELF — the `aria-label` on `role="tree"`.
+     *
+     * ⚠️ Package amendment PA-7, requested by the first real consumer. The view
+     * previously read `aria-label="{{ static::getNavigationLabel() }}"`, so the
+     * tree's accessible name **was** the navigation label and a host had no way to
+     * separate them. That consumer has had two strings for the two jobs since before
+     * this package existed — *"Vendor categories"* in the sidebar, *"Vendor category
+     * hierarchy"* on the tree — and the only way to change the second was to rename
+     * the first, moving its navigation item.
+     *
+     * ⚠️ This was squarely inside the package's own accessibility remit and had
+     * neither the care nor the slot the ROWS got: R-014 is about a row being announced
+     * by its own name, R-013 about the ARIA properties sitting on the focusable
+     * element, and the control's own name was whatever the sidebar happened to say. A
+     * navigation label answers "where am I going"; a tree's name answers "what is this
+     * control". They are different sentences.
+     *
+     * Defaults to the navigation label, so **no existing host moves**.
+     */
+    public function treeAccessibleName(): string
+    {
+        return static::getNavigationLabel();
+    }
+
+    /**
+     * Do branches start CLOSED? Defaults to open, which is what every host got
+     * before this slot existed.
+     *
+     * ⚠️ Package amendment PA-8, requested by the first real consumer. The controller
+     * initialises `collapsed: {}` and `isExpanded()` answers true for anything not
+     * explicitly closed, so **every branch of every host rendered open** and no host
+     * could say otherwise.
+     *
+     * ⚠️ Not a cosmetic default. It decides what the arrow keys traverse, what a
+     * screen reader walks, and how many rows a large tree paints on first load — a
+     * deep tree rendered fully open is a wall of rows to walk past. The consumer's
+     * tree had started collapsed since it was written, and adopting the package
+     * silently flipped it.
+     *
+     * ⚠️ A boolean, not a list of keys. Which branches an actor has opened is CLIENT
+     * state the server has no opinion about (see the controller's `collapsed`); a host
+     * choosing per-node initial state would be a second, server-side copy of that
+     * state, and the two would disagree the moment the actor touched a chevron.
+     */
+    public function treeBranchesStartCollapsed(): bool
+    {
+        return false;
     }
 
     /**

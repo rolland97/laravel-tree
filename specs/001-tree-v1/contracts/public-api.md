@@ -282,6 +282,8 @@ implements or overrides:
 | `matchesSearch(Model $node, string $term): bool` | no | Which columns a quick search looks in. Defaults to the tie-breaker |
 | `treeEmptyMessage(): string` | no | Which empty-state sentence to show. Chooses on whether a search is active |
 | `treeStrings(): array` | no | Override the announcement templates |
+| `treeAccessibleName(): string` | no | ⚠️ The **tree's own** accessible name. Defaults to the navigation label |
+| `treeBranchesStartCollapsed(): bool` | no | Do branches start closed? Defaults to `false` — open, as before the slot existed |
 
 Public Livewire entry points on the page: `placeNode(...)`, `confirmPendingMove()`,
 `cancelPendingMove()`.
@@ -399,6 +401,135 @@ discriminates whether the search path still *asks* the host: bypassing `matchesS
 `readSearchVisibleIds()` turns two of its six cases red while the rest of the suite stays green.
 
 **Migration**: none.
+
+#### `treeAccessibleName()` — ⚠️ AMENDMENT (during implementation, 001-tree-v1), **accessibility**
+
+```php
+public function treeAccessibleName(): string;   // defaults to static::getNavigationLabel()
+```
+
+**What was wrong.** The view rendered
+
+```blade
+<div class="ltree-tree" role="tree" aria-label="{{ static::getNavigationLabel() }}">
+```
+
+so the tree's accessible name **was** the page's navigation label, and the only way to
+change one was to change the other. The first real consumer has had two strings for the
+two jobs since before this package existed — *"Vendor categories"* in the sidebar,
+*"Vendor category hierarchy"* on the tree — and could keep both only by renaming its
+navigation item (the consumer's adoption, T048 — requested as **PA-7**).
+
+⚠️ **This sat inside the package's own accessibility remit and had neither the care nor
+the slot the ROWS got.** `AGENTS.md` R-014 is about a row being announced by its own
+name and R-013 about the ARIA properties sitting on the focusable element; the
+*control's* own name was whatever the sidebar happened to say. A navigation label
+answers "where am I going"; a tree's name answers "what is this control".
+
+⚠️ **`@mixin` tightened from `BasePage` to `Filament\Pages\Page`** in the same change,
+because that is where `getNavigationLabel()` is declared. Both host shapes descend from
+it (`Filament\Resources\Pages\Page extends Filament\Pages\Page`). The requirement is not
+new — the view always called that method — it was simply unanalysable inside a blade.
+
+**Guards**: `tests/Bridge/AccessibleNameTest.php` (override, default fallback, and that
+the navigation label does not move) and `tests/Browser/HostInitialStateTest.php`, which
+asserts the name **through axe's own accname implementation** rather than by reading the
+attribute back — the same discipline R-014 imposes on a row, for the same reason.
+
+**Migration**: none. A host that overrides nothing keeps the name it has today.
+
+#### `treeBranchesStartCollapsed()` — ⚠️ AMENDMENT (during implementation, 001-tree-v1)
+
+```php
+public function treeBranchesStartCollapsed(): bool;   // defaults to false
+```
+
+**What was wrong.** The controller initialises `collapsed: {}` and `isExpanded()`
+answered true for any key not explicitly closed, so **every branch of every host rendered
+open** and no host could say otherwise. The first consumer's tree had started collapsed
+since it was written; adopting the package silently flipped it (the consumer's adoption, T048 —
+requested as **PA-8**).
+
+⚠️ **Not a cosmetic default.** Arrows traverse DISPLAYED rows, so the initial state
+decides what the keyboard visits, what a screen reader walks, and how many rows a large
+tree paints at once.
+
+⚠️ **Three states in the controller, not two.** `isExpanded()` now distinguishes a key
+the actor opened, a key the actor closed, and a key **nobody has touched** — which is
+where the host's answer applies. Reading `collapsed[key] !== true` collapsed the third
+case into "open"; treating a missing key as closed would break reopening, which writes an
+explicit `false`.
+
+⚠️ **The SERVER-rendered markup carries the initial state too** — `aria-expanded` and a
+`display: none` on the children container. Between the response and Alpine booting there
+is no controller: `x-show` has done nothing and `aria-expanded` is whatever the markup
+said. A page that renders "open" and lets the controller correct it announces the wrong
+state to anything reading the document before then, and flashes every descendant of every
+branch on first paint.
+
+⚠️ **A closed branch's children stay IN the DOM** (`x-show`, never `x-if`). They are
+members of their group whether or not the actor opened it, and if closing a branch removed
+rows, the rendered set the client reports back would depend on what happened to be open —
+the client-index defect constitution Principle II exists to prevent, arriving by another
+door.
+
+⚠️ **A boolean, not a list of keys.** Which branches an actor has opened is client state
+the server has no opinion about; a host choosing per-node initial state would be a second,
+server-side copy of that state, and the two would disagree the moment a chevron was
+clicked.
+
+**Guards**: `tests/Bridge/InitialCollapseTest.php` (served markup, both directions) and
+`tests/Browser/HostInitialStateTest.php` (the controller's own answer after boot, the
+arrow-key path, and reopening). Mutating `isExpanded()` back to two states turns 5 of the
+browser cases red; the two that stay green are the default-host regression guard and the
+axe pass, and both are meant to.
+
+**Migration**: none. The default is `false`, which is what every host had.
+
+#### Typing a host's slots — ⚠️ AMENDMENT (during implementation, 001-tree-v1), documentation only
+
+The slots take `Model $node`, so `$node->name` is an undefined property to a host running
+static analysis at a useful level. **A host types its own slots**, and the supported way
+is a PHPDoc `@param`:
+
+```php
+/** @param  VendorCategory  $node */
+protected function badgesFor(Model $node): array
+{
+    return [$node->short_code];      // analysed as VendorCategory
+}
+```
+
+⚠️ **Verified on both host shapes, because they do NOT behave alike.**
+
+| A host that… | may narrow the NATIVE type | may narrow with `@param` |
+|---|:---:|:---:|
+| uses `InteractsWithTree` directly | ✅ — a using class's method **shadows** the trait's, and PHP runs no compatibility check | ✅ |
+| extends `TreePage` | ❌ — the slot is inherited from a **class**, where PHP enforces LSP: `Declaration of … must be compatible with …` | ✅ |
+
+So native narrowing works on one shape and is a **fatal error** on the other, while
+`@param` works on both. That asymmetry is why this is documented rather than left to each
+consumer: the first one concluded from the base-page rule that narrowing was impossible
+*anywhere*, and wrote a throwing `category(Model $node): VendorCategory` helper called
+from six slots (the consumer's adoption — requested as **PA-9**).
+
+⚠️ **A generic trait was tried for this and REJECTED on evidence.** `@template TNode of
+Model&TreeNode` types a base-page host's slots automatically — but it cannot be made sound
+inside the package, and it does not help a trait host at all:
+
+- larastan resolves `Builder<TNode>::get()` to the template's **bound**, never to `TNode`
+  (with an intersection bound it splits further, into
+  `Collection<int, Model>|Collection<int, TreeNode>` — a union in which neither member has
+  both APIs). So no internal read can be claimed as `TNode`, and every internal call into a
+  `TNode` slot becomes an `argument.type` error. Eight of them, clearable only with casts or
+  inline `@var` — which `AGENTS.md` R-031 forbids;
+- PHPDoc inheritance does not reach a method that **shadows** a trait method, so
+  `@use InteractsWithTree<Category>` types nothing on the trait path — the shape the only
+  consumer uses.
+
+Recorded rather than shipped, and rechecked if larastan's builder generics improve.
+
+**Migration**: none. Nothing about the code changed.
 
 #### Which event a placement fires — ⚠️ AMENDMENT (during implementation, 001-tree-v1)
 

@@ -10,6 +10,14 @@
     // siblings — see TreePage::treeSetSizeFor().
     $position = $this->treePositionFor($node);
     $setSize = $this->treeSetSizeFor($node);
+
+    // ⚠️ PA-8. The SERVER-rendered state must agree with what the controller will
+    // answer, because between the response and Alpine booting there is no
+    // controller: `x-show` has done nothing and `aria-expanded` is whatever the
+    // markup said. Rendering "open" for a host that starts closed announces the
+    // wrong state to anything reading the document before boot, and flashes every
+    // descendant of every branch on first paint.
+    $startsCollapsed = $this->treeBranchesStartCollapsed();
 @endphp
 
 <div class="ltree-branch" data-ltree-branch="{{ $key }}">
@@ -45,7 +53,7 @@
         aria-posinset="{{ $position }}"
         aria-setsize="{{ $setSize }}"
         @if ($hasChildren)
-            aria-expanded="true"
+            aria-expanded="{{ $startsCollapsed ? 'false' : 'true' }}"
             x-bind:aria-expanded="isExpanded(@js((string) $key)) ? 'true' : 'false'"
         @endif
     >
@@ -119,6 +127,11 @@
             role="group"
             data-ltree-children-of="{{ $key }}"
             x-show="isExpanded(@js((string) $key))"
+            {{-- ⚠️ The initial state, in the markup (PA-8). Alpine clears this
+                 itself the moment `x-show` evaluates truthy, so a host that starts
+                 open is untouched — but a host that starts closed no longer paints
+                 its whole tree and then hides it. --}}
+            @if ($startsCollapsed) style="display: none;" @endif
         >
             @foreach ($children as $child)
                 @include('tree::tree-branch', [

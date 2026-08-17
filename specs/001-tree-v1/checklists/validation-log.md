@@ -1371,3 +1371,119 @@ PHPStan will hit the same 25 errors and invent the same workaround, which is the
 definition of something the library should own.
 
 Suite after: **270 passed**, PHPStan level 8 clean on both sides.
+
+---
+
+## PA-7 / PA-8 — two host slots the consumer's browser suite demanded
+
+Both were raised by the consumer's adoption T048, where 24 of 26 browser cases stayed red
+after a purely mechanical selector re-point. Neither is cosmetic.
+
+### ⚠️ Finding F26 — the TREE's accessible name was not host-overridable
+
+```blade
+<div class="ltree-tree" role="tree" aria-label="{{ static::getNavigationLabel() }}">
+```
+
+The tree's accessible name **was** the navigation label, so a host with two
+strings for the two jobs — *"Vendor categories"* in the sidebar, *"Vendor category
+hierarchy"* on the tree — could keep one of them and only by renaming its
+navigation item.
+
+⚠️ **This is inside this package's own accessibility remit**, and it is worth being
+precise about how it was missed: R-014 made a ROW's announced name a first-class
+rule with a direct assertion, and R-013 put the ARIA properties on the focusable
+element. Nobody wrote the equivalent rule for the *control*, so its name was
+whatever the sidebar said and no test looked at it.
+
+Fixed as `treeAccessibleName()`, defaulting to the navigation label.
+
+⚠️ `@mixin` moved from `BasePage` to `Filament\Pages\Page` in the same change,
+because that is where `getNavigationLabel()` is declared. **The requirement is not
+new** — the view has always called it — it was simply unanalysable while it lived
+in a blade. PHPStan level 8 sees it now.
+
+**Watched red**: the override case fails with the tree still named
+*"Category tree"*; the two default-host cases pass **before and after**, which is
+what "Migration: none" actually means. In the browser, reverting the view reddens
+both PA-7 cases.
+
+### ⚠️ Finding F27 — every branch of every host rendered EXPANDED
+
+`collapsed: {}` plus `isExpanded(key) => this.collapsed[key] !== true` means an
+untouched key is open, with no way for a host to say otherwise. The consumer's tree
+had started collapsed since it was written, and the adoption silently flipped it —
+changing what the arrow keys traverse, what a screen reader walks, and how many
+rows a deep tree paints at once. It was also the likely cause of several 5000ms
+timeouts in that suite, which waited on rows that were already on the page.
+
+Fixed as `treeBranchesStartCollapsed()`, defaulting to `false` — the behaviour
+every host already had.
+
+Three things had to move together, and each one is a place this could have shipped
+half-done:
+
+1. **The controller needs three states, not two.** Opened, closed, and *untouched*
+   — the last is where the host's answer applies. `collapsed[key] !== true` folded
+   the third into "open"; treating a missing key as closed would have broken
+   reopening, which writes an explicit `false`.
+2. **The served markup has to agree.** Before Alpine boots there is no controller:
+   `x-show` has done nothing and `aria-expanded` is whatever the server said. So
+   the initial state is rendered as `aria-expanded="false"` plus `display: none` on
+   the children container, and Alpine clears the style itself when `x-show` first
+   evaluates truthy.
+3. **The children stay in the DOM.** `x-show`, never `x-if` — a child of a closed
+   branch is still a member of its group, and if closing a branch removed rows, the
+   rendered set the client reports back to the server would depend on what the actor
+   happened to have open. That is the client-index defect of constitution Principle
+   II arriving by a different door.
+
+**Watched red, twice.** Before the change, 6 of the 9 bridge cases fail (the 3 that
+pass are the default-host regression guards). After it, mutating `isExpanded()` back
+to two states and rebuilding `resources/dist/` reddens **7 of 9** browser cases; the
+two survivors are the default-host guard, which must pass either way, and the axe
+pass, which is clean in both states — recorded so neither is mistaken for a
+discriminator later.
+
+## ⚠️ Finding F28 — F25's "deferred" amendment is not the amendment it looked like
+
+F25 recorded 25 consumer errors as needing a generic trait, on the stated ground
+that **"PHP forbids an override from narrowing a parameter"**. That sentence is
+half true, and the half that is false is the half the consumer was standing on
+(`AGENTS.md` R-037: a quoted constraint is a claim).
+
+Verified directly, both shapes, with a runnable probe:
+
+| A host that… | narrowing the NATIVE type | narrowing with `@param` |
+|---|---|---|
+| uses `InteractsWithTree` directly | **allowed** — a using class's method SHADOWS the trait's, and PHP runs no compatibility check | allowed |
+| extends `TreePage` | **fatal** — `Declaration of ClassHost::slot(Node $n) must be compatible with Base::slot(object $n)` | allowed |
+
+⚠️ **The consumer is a trait host**, so it could have typed its slots all along; the
+rule it reasoned from belongs to the base-page shape. A `@param` docblock works on
+both and is one line per slot, which is what the contract now documents.
+
+⚠️ **The generic trait was implemented, analysed and REVERTED — it is not merely
+"deferred" any more.** Two independent reasons, both measured here:
+
+1. **larastan will not carry the template through the builder.**
+   `Builder<TNode>::get()` resolves to the template's *bound*, never `TNode`; with the
+   honest bound `Model&TreeNode` it splits into
+   `Collection<int, Model>|Collection<int, TreeNode>` — a union in which neither member
+   has both APIs, so `$node->getAttribute()` is undefined on it. Dumped with
+   `\PHPStan\dumpType()` rather than inferred from the error text. Consequence: no
+   internal read can be claimed as `TNode`, and the eight internal call sites into
+   `TNode` slots become `argument.type` errors clearable only by a cast or an inline
+   `@var` — both forbidden by R-031. Widening `TNode` to `of Model` does not help: the
+   bound is what comes back either way, and the core actions require `Model&TreeNode`.
+2. **It would not have helped this consumer even if it were sound.** PHPDoc
+   inheritance does not reach a method that *shadows* a trait method, so with
+   `@use InteractsWithTree<Category>` bound and `$node->name` in a slot, PHPStan still
+   reported `Access to an undefined property Model::$name`. The generic benefit exists
+   only for the base-page shape — proved by the opposite result on a fixture with
+   `@extends TreePage<Category>`, where the same access analysed clean.
+
+So the amendment lands as **documentation** (PA-9), which is also what PA-5 turned out
+to be. ⚠️ The measurable cost of the wrong diagnosis: a throwing narrowing helper
+called from six slots in the consumer, plus this second investigation. What made it
+expensive was that the false half foreclosed work — exactly the asymmetry R-037 names.
