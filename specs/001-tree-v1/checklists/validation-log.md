@@ -320,3 +320,41 @@ than accepted, and it is the same shape as F1:
 Both mechanisms are kept. `wire:ignore` is the one the source application's live
 defect named, and it must not be "tidied away" on the evidence that the suite stays
 green without it.
+
+---
+
+## T095 — quickstart § Verification, run
+
+| Criterion | Command | Result |
+|---|---|---|
+| SC-010 core stands alone | `composer remove --dev filament/filament` then `pest --testsuite=core` | **83 passed**, `vendor/filament` absent |
+| SC-002 / SC-003 ordering + contiguity | `pest --filter=OrderIntegrity` | 8 passed, each in its OWN case |
+| SC-004 every refusal | `pest --filter=refuses` | 14 passed |
+| SC-005 / SC-007 styling + axe, both schemes | `pest --filter=Styling` | 8 passed |
+| SC-006 / SC-008 keyboard + row naming | `pest --filter=Keyboard` | 40 passed |
+
+## T099 — SC-011 is UNPROVED, and cannot be proved on this machine
+
+⚠️ **Reported unproved, not skipped.** The walk needs a real screen reader and
+**working audio**, driven by someone who can hear it. Checked rather than assumed:
+
+```
+/dev/snd            -> only `timer`; no playback device
+aplay, pactl        -> not installed
+orca, nvda, jaws,
+espeak, spd-say     -> all absent
+```
+
+**SC-011 is therefore UNPROVED.** It MUST NOT be inferred from anything already
+green:
+
+- the axe passes prove a name **exists**, never that it is sensible — axe cannot
+  see a row announcing its whole subtree, because that IS a name;
+- the accname assertions prove the **data** a screen reader receives;
+- the live-region assertions prove the **text** it would be handed.
+
+None of them prove the announcements work as heard sentences in sequence. The
+source application shipped this exact tree with four *correct* ARIA assertions
+passing while the announced name was wrong (`AGENTS.md` R-018).
+
+T099 stays **open**.

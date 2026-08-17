@@ -312,7 +312,7 @@ code at all). Parallelising the stories destroys the proof.
       files T003–T005/T008 created, retagging each `[ratified]`. ⚠️ A rule still citing an
       intention after its artifact exists is drift.
 - [X] T094 [P] [POLISH] Update the constitution's sync impact report: `README.md` now exists.
-- [ ] T095 [POLISH] Run every procedure in `quickstart.md` § Verification.
+- [X] T095 [POLISH] Run every procedure in `quickstart.md` § Verification.
 - [ ] T096 [POLISH] `/speckit-analyze` for cross-artifact consistency.
 - [ ] T097 [POLISH] `/speckit-superb-critique`. ⚠️ **Run this before the branch is finished, not
       only at the end** — on the last comparable slice it found three gaps that eleven guards and
