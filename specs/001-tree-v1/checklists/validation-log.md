@@ -847,3 +847,147 @@ fire.
 learnt**: three reports had described this CI as correct without it ever having
 run. Two consecutive findings now have the same root — a claim about an automated
 check that the automated check had never made.
+
+---
+
+## PA-1…PA-4 — four amendments requested by the first real consumer
+
+**Date: 2026-08-17.** Requested in the consumer's adoption slice
+(`contracts/package-amendments.md`, research F1/F3/F4/F10) and landed here as
+design amendments to `contracts/public-api.md` per `AGENTS.md` R-005.
+
+⚠️ **The finding rate is the release gate working, not a problem with it.** Four
+blocking amendments — one of them a security hole — were found by building the
+first consumer against an untagged package. That is exactly what R-035 exists for.
+
+Baseline before any change: **215 passed**. After all four: **248 passed**,
+PHPStan level 8 clean, Pint clean.
+
+### Red observed, per amendment
+
+| Amendment | Command | Red |
+|---|---|---|
+| PA-1 | `pest --testsuite=bridge --filter=InteractsWithTree` | **9 failed** — `Trait "Rolland\Tree\Filament\Concerns\InteractsWithTree" not found` |
+| PA-2 | `pest --testsuite=bridge --filter=AuthorizeTreeMove` | **7 failed, 2 passed** |
+| PA-3 | `pest --testsuite=bridge --filter=ReorderRouting` | **3 failed, 6 passed** |
+| PA-4 | `pest --testsuite=browser --filter=AnnouncementPlaceholders` | **4 failed, 1 passed** |
+
+PA-1's red is **absence red only** — the trait did not exist, so every test in the
+file errored at autoload. PA-2, PA-3 and PA-4 are stronger: the code existed and
+ran, and the reds are the assertions discriminating.
+
+### ⚠️ Finding F17 — PA-1 as requested would have fatalled on the host it was for
+
+PA-1 asked for a trait "carrying the current body". Carrying **all** of it does not
+compose. `TreePage` declares `protected static string $model`, and a trait property
+against a using class's own property with a different initial value is a fatal
+composition error, not a warning:
+
+```
+C and T define the same property ($model) in the composition of C.
+However, the definition differs and is considered incompatible.
+```
+
+Every host names its own model, so a trait carrying `$model` would refuse to
+compose with **every** host — including the resource-page host the amendment
+exists to enable. Probed directly rather than reasoned about; the same probe
+confirmed the two rules the amendment depends on:
+
+| Composition | Result |
+|---|---|
+| trait property vs **class's own** property, different default | ⛔ fatal |
+| trait property vs **parent's** property, different default | ✅ allowed — so `$view = 'tree::tree'` moves safely |
+| trait method vs **inherited** method | ✅ trait wins — so `getHeaderActions()` reaches the host slot |
+
+`$model` and `treeModel()` therefore stay on `TreePage`, reached by inheritance.
+Nothing in the trait reads them.
+
+### ⚠️ Finding F18 — research F1's stated mechanism is wrong; its conclusion is not
+
+F1 records the two Filament page classes as *"siblings under `BasePage`"*. They are
+not. `Filament\Resources\Pages\Page` does `use Filament\Pages\Page as BasePage` and
+extends it, so the resource page is a **descendant** of the panel page:
+
+```
+Filament\Pages\BasePage ← Filament\Pages\Page ← Filament\Resources\Pages\Page
+```
+
+The conclusion survives unchanged — `route()` is declared only on the child
+(`Resources/Pages/Page.php:136`, not `:125` as recorded), and extending `TreePage`
+lands a host on the parent, where it does not exist. Inheritance runs one way.
+
+Recorded per `AGENTS.md` R-037: the claim was load-bearing for an amendment, so it
+was checked against the artifact rather than repeated. ⚠️ Both drifted details are
+in the direction of sounding *more* authoritative than the reading supported.
+
+### ⚠️ Finding F19 — one PA-2 guard cannot be made to fail, by construction
+
+`it('never asks the host about a node the actor cannot see')` passed **before**
+PA-2 was implemented, vacuously: the hook did not exist, so it was never called
+with anything. After implementation it is meaningful but still cannot be mutated
+into failing — `authorizeTreeMove(Model $node, …)` requires a resolved model, so
+there is no way to call it earlier than resolution without changing its signature.
+
+Left in place rather than deleted. It is the third guard in this log held by
+structure rather than by a check, and the rule stands: **do not tidy it away on
+the evidence that the suite stays green without it.**
+
+### PA-3 — one existing guard re-pointed, and why that is not weakening it
+
+`KeyboardReorderTest`'s FR-041 guard asserted `MoveCounter::$moved === 1` after a
+keyboard reorder. A keyboard reorder never leaves its group, so under PA-3 it fires
+`SiblingsReordered` and the guard went red — **the correct consequence**, observed:
+
+```
+it fires exactly one move event however many keystrokes produced it
+Failed asserting that 0 is identical to 1.
+```
+
+Re-pointed to `$reordered === 1` **and** `$moved === 0`. The guarantee — one event
+per completed interaction, however many keystrokes — is unchanged and now proved on
+the correct event, with the wrong event proved absent. The counters are kept
+separate deliberately: a counter that summed them could not tell one reorder from
+one move, which is the distinction PA-3 exists to restore.
+
+### PA-3 — a deliberate second copy of the invalid-target guard
+
+`MoveNode` refuses a destination whose `isValidTreeTarget()` is false;
+`ReorderSiblings` asks nobody. Routing reorders around `MoveNode` would therefore
+have **started allowing** reorders inside a parent the host froze — a silent
+widening of what is permitted that no consumer asked for. The reorder path asks the
+same question before writing, and `MoveNode` keeps its own for direct callers.
+
+Pinned by `it('still refuses a reorder inside a parent the host says cannot receive
+children')`, which was green before the change and stays green after. ⚠️ That is
+the point: it is a **behaviour-preservation** guard, so its value is that it never
+went red, and it is a fourth instance of the two-mechanism shape above.
+
+### ⚠️ Finding F20 — `moved_into` ships as a template with no producer
+
+While writing PA-4's per-key placeholder table:
+
+```
+$ grep -oE "say\('[a-z_]+'" resources/js/tree.js | sort -u
+say('abandoned' say('already_first' say('already_last' say('cancelled'
+say('moved' say('only_child' say('picked_up' say('put_down' say('refused'
+```
+
+Nine keys. `announce.moved_into` is a tenth in `lang/en/tree.php`, documented and
+translatable, and **nothing anywhere announces it** — the controller never says a
+re-parent is "inside :parent". This is the same shape as the `SiblingsReordered`
+gap PA-3 closed, found the same way.
+
+**Not fixed**, and deliberately so: PA-4's scope is the placeholder contract, and
+the consumer's own F10 records `moved_into` as *"a tenth announcement this app has
+never had"*. Inventing when it fires would be designing announced copy with no
+consumer — the mistake R-035 names for tags, applied to wording. Recorded in the
+contract table as having no producer so the next reader cannot mistake it for
+working surface.
+
+### SC-011 remains UNPROVED
+
+Nothing in PA-1…PA-4 changes that. PA-4 makes the announcements *carry the right
+data*, proved by reading the live region's text — which is evidence for the
+placeholder contract and explicitly **not** for SC-011 (`AGENTS.md` R-018). ⚠️ PA-4
+in fact widens what a screen-reader walk would need to cover, since four
+announcements now say more than they did.
