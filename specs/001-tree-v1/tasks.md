@@ -186,36 +186,36 @@ code at all). Parallelising the stories destroys the proof.
 
 ### Tests first
 
-- [ ] T048 [P] [US2] `tests/Bridge/TreePageTest.php`: a host page declaring model + visible query
+- [X] T048 [P] [US2] `tests/Bridge/TreePageTest.php`: a host page declaring model + visible query
       renders the full hierarchy.
-- [ ] T049 [P] [US2] Host-supplied badges, row actions, header actions and leaf slot all appear.
-- [ ] T050 [P] [US2] Quick search narrows displayed rows.
-- [ ] T051 [P] [US2] Confirmation flow: nothing is applied until confirmed.
-- [ ] T052 [P] [US2] `placeNode()` re-checks authorization **on the committing call**, and an
+- [X] T049 [P] [US2] Host-supplied badges, row actions, header actions and leaf slot all appear.
+- [X] T050 [P] [US2] Quick search narrows displayed rows.
+- [X] T051 [P] [US2] Confirmation flow: nothing is applied until confirmed.
+- [X] T052 [P] [US2] `placeNode()` re-checks authorization **on the committing call**, and an
       unauthorised call changes nothing.
-- [ ] T053 [P] [US2] `tests/Browser/DragTest.php`: drag reorder and drag nest produce the same
+- [X] T053 [P] [US2] `tests/Browser/DragTest.php`: drag reorder and drag nest produce the same
       stored order as the equivalent `PlaceNode` call. ⚠️ Drag **after** rather than before —
       a before-drop is indistinguishable between a right and wrong implementation.
-- [ ] T054 [P] [US2] Drag with a search active: hidden rows keep their relative order.
-- [ ] T055 [US2] **Watch T048–T054 fail**; record REDs.
+- [X] T054 [P] [US2] Drag with a search active: hidden rows keep their relative order.
+- [X] T055 [US2] **Watch T048–T054 fail**; record REDs.
 
 ### Implementation
 
-- [ ] T056 [US2] `src/Filament/Pages/TreePage.php` — `nodesByParent()`, `searchVisibleIds()`,
+- [X] T056 [US2] `src/Filament/Pages/TreePage.php` — `nodesByParent()`, `searchVisibleIds()`,
       `placeNode()`, `confirmPendingMove()`, `cancelPendingMove()`, and the host hooks.
 - [X] T057 [US2] `src/Filament/FilamentTreeServiceProvider.php` — registers assets via
       `FilamentAsset::register([...], package: 'rolland97/laravel-tree')`.
-- [ ] T058 [US2] `resources/views/tree.blade.php` and `tree-branch.blade.php`.
+- [X] T058 [US2] `resources/views/tree.blade.php` and `tree-branch.blade.php`.
       ⚠️ **Written from scratch against package classes, NOT copied.** Every visual class in the
       source blades is a bare host utility that will not compile from `vendor/` (`AGENTS.md`
       R-020).
-- [ ] T059 [US2] `resources/css/tree.css` — `ltree-` prefixed classes; `<x-filament::*>` for
+- [X] T059 [US2] `resources/css/tree.css` — `ltree-` prefixed classes; `<x-filament::*>` for
       anything Filament covers; inherit `var(--primary-*)` rather than defining a palette.
-- [ ] T060 [US2] Build pipeline (esbuild per research R6) producing `resources/dist/tree.css`.
+- [X] T060 [US2] Build pipeline (esbuild per research R6) producing `resources/dist/tree.css`.
       **Commit the output.**
-- [ ] T061 [US2] Drag controller: pointer-position based, initiated only from a dedicated handle
+- [X] T061 [US2] Drag controller: pointer-position based, initiated only from a dedicated handle
       so a row action never starts a drag (FR-023).
-- [ ] T062 [US2] ⚠️ **Verify styling live, in a real browser, light AND dark.** No suite assertion
+- [X] T062 [US2] ⚠️ **Verify styling live, in a real browser, light AND dark.** No suite assertion
       can prove this — the harness serves no compiled CSS (quickstart.md § SC-005). Check the
       stylesheet, not just the page: a bare-`<div>` probe reading `outline-style` cannot fail,
       because its default is already `none`.

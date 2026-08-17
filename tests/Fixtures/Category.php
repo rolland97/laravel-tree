@@ -16,6 +16,7 @@ use Rolland\Tree\Contracts\TreeNode;
  * @property int $position
  * @property string $name
  * @property bool $is_active
+ * @property bool $is_visible
  */
 final class Category extends Model implements TreeNode
 {
@@ -35,10 +36,12 @@ final class Category extends Model implements TreeNode
     protected $attributes = [
         'position' => 0,
         'is_active' => true,
+        'is_visible' => true,
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_visible' => 'boolean',
         'position' => 'integer',
     ];
 

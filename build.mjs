@@ -30,6 +30,8 @@ await esbuild.build({
     ...shared,
     entryPoints: ['resources/js/tree.js'],
     outfile: 'resources/dist/tree.js',
-    format: 'esm',
+    // IIFE, not ESM: the file self-registers on `alpine:init` rather than being
+    // imported on demand. See the note at the bottom of resources/js/tree.js.
+    format: 'iife',
     platform: 'browser',
 })

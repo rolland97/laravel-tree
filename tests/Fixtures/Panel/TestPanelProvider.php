@@ -35,12 +35,23 @@ final class TestPanelProvider extends PanelProvider
             ->default()
             ->id('testing')
             ->path('admin')
-            ->colors(['primary' => '#2563eb'])
+            // ⚠️ Filament's DEFAULT palette, not a hand-picked hex.
+            //
+            // A custom `primary` of #2563eb made Filament render its own buttons as
+            // white on #477ae3 — contrast 4.06 against a required 4.5, which axe
+            // reported against the tree page. The buttons are Filament's, the
+            // colour was this fixture's, and the package's job is to INHERIT the
+            // host's accent rather than define a palette (AGENTS.md R-021). So the
+            // fixture stops choosing a bad one; the package is not "fixed" by
+            // overriding a host's colours, which is the one thing it must not do.
+            //
+            // Worth keeping in mind for hosts: laravel-tree cannot rescue a panel
+            // whose own primary fails contrast.
             // ⚠️ Registered HERE, not in a test's beforeEach. Filament builds a
             // panel's routes while booting, so a page added afterwards resolves to
             // a 404 — and a 404 page passes `assertNoAccessibilityIssues()`
             // vacuously, which is how this nearly read as a green spike.
-            ->pages([SpikePage::class])
+            ->pages([SpikePage::class, CategoryTreePage::class])
             // ⚠️ No `AuthenticateSession` and no `->login()`. This panel has no
             // guard configured, and the spike's question is about serving and
             // styling, not about authentication — a panel that 500s inside the

@@ -108,6 +108,26 @@
     border-color: rgb(var(--primary-500, 59 130 246));
 }
 
+.ltree-confirm {
+    margin-top: 0.75rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(228 228 231);
+    background-color: rgb(255 255 255);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ltree-confirm-heading {
+    font-weight: 600;
+}
+
+.ltree-confirm-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
 .ltree-empty {
     padding: 1rem;
     color: rgb(113 113 122);
@@ -158,6 +178,20 @@
     .ltree-handle,
     .ltree-empty {
         color: rgb(161 161 170);
+    }
+
+    /*
+     * ⚠️ The confirmation panel MUST be re-coloured here. Its light rule paints an
+     * explicit white background, which inside a dark panel is white-on-white — the
+     * confirmation would be present, focusable and unreadable.
+     *
+     * No suite assertion can catch that: the harness serves the compiled CSS, but
+     * nothing asserts this panel's colours, and a passing accessibility check would
+     * not either. It is on the T062 live-verification list for exactly that reason.
+     */
+    .ltree-confirm {
+        background-color: rgb(39 39 42);
+        border-color: rgb(63 63 70);
     }
 
     .ltree-spike-probe {

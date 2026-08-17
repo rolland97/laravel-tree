@@ -123,3 +123,83 @@ Exactly one guard reddened — the one written for that seam. The neighbouring g
 (`it reads its column names from configuration`) stayed green, correctly: it
 exercises `treeParentId()`, which reads config on a path of its own. Two seams, two
 guards, and the mutation hit precisely one.
+
+---
+
+## T055 — US2 bridge guards (T048–T054)
+
+**Absence red observed.** Command: `vendor/bin/pest --testsuite=bridge`
+
+```
+Class "Rolland\Tree\Filament\Pages\TreePage" not found
+Tests:    17 failed, 2 passed (2 assertions)
+```
+
+### ⚠️ Finding F2 — an assertion that was wrong in the defect's own direction
+
+`it applies a move immediately when the host asks for no confirmation` was first
+written expecting `[Bravo, Aardvark, Charlie]` — which is what "put Bravo before
+Charlie" looks like **if you only count the rows the actor saw**. The correct
+answer is `[Aardvark, Bravo, Charlie]`: the complete group reads Aardvark(0),
+Charlie(0), Bravo(1), Aardvark wins the name tie-break, so "before Charlie" is
+index 1 of the COMPLETE group.
+
+The implementation was right and the test was wrong, in exactly the direction the
+071 defect goes. Corrected in place with the reasoning recorded beside it, rather
+than quietly adjusted.
+
+### ⚠️ Finding F3 — a race that made a working drag look broken
+
+Four browser drag tests failed while the drag was in fact working. `assertMissing()`
+on an element that never appears returns **immediately**, so the test read the
+database before the Livewire round trip had landed. The confirmation tests passed
+only because `assertPresent()` happened to wait.
+
+Fixed with an explicit `waitForLastChild()` DOM poll — a **wait**, not an
+assertion. Every claim is still made against the stored rows.
+
+### ⚠️ Finding F4 — the drag looked broken, and was not
+
+`drag()` on a root node produced no write. Six probes later: the move had gone to
+the **confirmation queue**, because the fixture page asks for confirmation on
+cross-parent moves. `pendingMove: true`, nothing written — correct behaviour,
+asserted wrongly. Recorded because the same symptom (a gesture that "does
+nothing") had three different causes during US2, only one of which was a defect.
+
+---
+
+## T062 — styling verified live, in both schemes
+
+⚠️ tasks.md assumed this was **not** assertable, because "the harness serves no
+compiled CSS". The R10 spike disproved that for this harness, so `StylingTest.php`
+makes the checks for real:
+
+| Probe | Value | Why it can fail |
+|---|---|---|
+| focus ring `outline-style` | `solid` | default is `none` |
+| focus ring `outline-width` | `2px` | default is `0px` |
+| row background, light | `rgb(255, 255, 255)` | default is transparent |
+| row background, dark | `rgb(39, 39, 42)` | differs from light |
+| confirm panel, light / dark | `255,255,255` / `39,39,42` | see F5 |
+| live region `display` | not `none` | a hidden region is never announced |
+
+### ⚠️ Finding F5 — a real defect the suite could not have caught
+
+An editing slip spliced the confirmation panel's **light** rule *inside* the
+dark-mode media query, leaving `background-color: rgb(255 255 255)` on a dark
+page — the confirmation would have been present, focusable and **unreadable**.
+
+Nothing else would have found it: the bridge suite asserts the panel's behaviour,
+axe reports no violation for it, and no ordering test touches colour. It is now a
+named regression guard.
+
+### ⚠️ Finding F6 — an axe violation that was the HOST's, not the package's
+
+axe reported contrast **4.06** (white on `#477ae3`) against the tree page. The
+elements were Filament's own buttons rendering host-supplied row and header
+actions, coloured by the `primary` this test fixture had chosen.
+
+The fixture stopped choosing a bad colour. The package was **not** "fixed" by
+overriding the host's palette — inheriting the host's accent rather than defining
+one is R-021, and overriding it is the one thing it must not do. Worth telling
+hosts: laravel-tree cannot rescue a panel whose own primary fails contrast.

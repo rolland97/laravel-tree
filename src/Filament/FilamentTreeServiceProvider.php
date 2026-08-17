@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Rolland\Tree\Filament;
 
-use Filament\Support\Assets\AlpineComponent;
 use Filament\Support\Assets\Css;
+use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
 use Illuminate\Support\ServiceProvider;
 
@@ -35,7 +35,7 @@ final class FilamentTreeServiceProvider extends ServiceProvider
 
         FilamentAsset::register([
             Css::make('tree', dirname(__DIR__, 2).'/resources/dist/tree.css'),
-            AlpineComponent::make('tree', dirname(__DIR__, 2).'/resources/dist/tree.js'),
+            Js::make('tree', dirname(__DIR__, 2).'/resources/dist/tree.js'),
         ], package: self::PACKAGE);
     }
 }
