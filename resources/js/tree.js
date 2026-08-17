@@ -33,6 +33,9 @@ function ltree(strings = {}) {
         /** The node being dragged with a pointer, if any. */
         draggingId: null,
 
+        /** Branch keys the user has closed. Client state; the server has no opinion. */
+        collapsed: {},
+
         init() {
             this.adoptFirstRow()
 
@@ -217,10 +220,140 @@ function ltree(strings = {}) {
             this.clearDropMarkers()
         },
 
-        // ── Keyboard (US3/US4) ───────────────────────────────────────────────
+        // ── Keyboard traversal (US3) ─────────────────────────────────────────
 
-        onTreeKeydown() {
-            // Traversal lands in T071–T072; reordering in T087–T092.
+        isExpanded(key) {
+            return this.collapsed[key] !== true
+        },
+
+        childrenContainerOf(key) {
+            return this.$el.querySelector(`[data-ltree-children-of="${key}"]`)
+        },
+
+        hasChildren(row) {
+            return this.childrenContainerOf(row.dataset.ltreeKey) !== null
+        },
+
+        /**
+         * Rows the actor can actually see right now.
+         *
+         * ⚠️ Arrows traverse DISPLAYED rows. A row inside a collapsed branch is
+         * still in the DOM — deliberately, so the rendered set the package reports
+         * to the server does not depend on what the user happened to have open —
+         * so it has to be filtered out here rather than assumed absent.
+         */
+        displayedRows() {
+            return this.rows().filter((row) => !this.isHiddenByCollapse(row))
+        },
+
+        isHiddenByCollapse(row) {
+            let container = row.parentElement?.closest('[data-ltree-children-of]')
+
+            while (container) {
+                if (!this.isExpanded(container.dataset.ltreeChildrenOf)) {
+                    return true
+                }
+
+                container = container.parentElement?.closest('[data-ltree-children-of]')
+            }
+
+            return false
+        },
+
+        parentRowOf(row) {
+            const container = row.parentElement?.closest('[data-ltree-children-of]')
+
+            return container ? this.rowFor(container.dataset.ltreeChildrenOf) : null
+        },
+
+        firstChildRowOf(row) {
+            const container = this.childrenContainerOf(row.dataset.ltreeKey)
+
+            return container ? container.querySelector('[data-ltree-key]') : null
+        },
+
+        focusRow(row) {
+            if (!row) {
+                return
+            }
+
+            this.focusedId = row.dataset.ltreeKey
+
+            // ⚠️ After $nextTick: focus() on a hidden element is a SILENT no-op,
+            // and a row revealed by the expand in this same keystroke may not be
+            // displayed yet when we get here.
+            this.$nextTick(() => row.focus())
+        },
+
+        step(row, delta) {
+            const displayed = this.displayedRows()
+            const index = displayed.indexOf(row)
+
+            if (index === -1) {
+                return
+            }
+
+            // ⚠️ NO WRAPPING, at either end (spec FR-032). Wrapping in a tree is
+            // disorienting: the reader has no way to tell "last row" from "back at
+            // the top" without counting.
+            const next = index + delta
+
+            if (next < 0 || next >= displayed.length) {
+                return
+            }
+
+            this.focusRow(displayed[next])
+        },
+
+        onTreeKeydown(event) {
+            const row = event.target.closest?.('[data-ltree-key]')
+
+            if (!row) {
+                return
+            }
+
+            const handlers = {
+                ArrowDown: () => this.step(row, 1),
+                ArrowUp: () => this.step(row, -1),
+                Home: () => this.focusRow(this.displayedRows()[0]),
+                End: () => {
+                    const displayed = this.displayedRows()
+                    this.focusRow(displayed[displayed.length - 1])
+                },
+                // Right EXPANDS first, and only descends once already open.
+                ArrowRight: () => {
+                    if (!this.hasChildren(row)) {
+                        return
+                    }
+
+                    if (!this.isExpanded(row.dataset.ltreeKey)) {
+                        this.collapsed = { ...this.collapsed, [row.dataset.ltreeKey]: false }
+
+                        return
+                    }
+
+                    this.focusRow(this.firstChildRowOf(row))
+                },
+                // Left COLLAPSES first, and only ascends once already closed.
+                ArrowLeft: () => {
+                    if (this.hasChildren(row) && this.isExpanded(row.dataset.ltreeKey)) {
+                        this.collapsed = { ...this.collapsed, [row.dataset.ltreeKey]: true }
+
+                        return
+                    }
+
+                    this.focusRow(this.parentRowOf(row))
+                },
+            }
+
+            const handler = handlers[event.key]
+
+            if (!handler) {
+                return
+            }
+
+            event.preventDefault()
+            handler()
         },
 
         onTreeFocusOut() {

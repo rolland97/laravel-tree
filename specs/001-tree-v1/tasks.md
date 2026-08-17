@@ -228,34 +228,34 @@ code at all). Parallelising the stories destroys the proof.
 
 ### Tests first
 
-- [ ] T063 [P] [US3] `tests/Browser/KeyboardTraversalTest.php`: the whole tree is **one** tab stop
+- [X] T063 [P] [US3] `tests/Browser/KeyboardTraversalTest.php`: the whole tree is **one** tab stop
       (count `tabindex="0"` — it must stay at 1 throughout).
-- [ ] T064 [P] [US3] Arrows move between displayed rows and **do not wrap** at either end.
-- [ ] T065 [P] [US3] Right expands then descends; Left collapses then ascends; Home/End jump.
-- [ ] T066 [P] [US3] ⚠️ **Assert the announced NAME of a row directly** — its own name only, not
+- [X] T064 [P] [US3] Arrows move between displayed rows and **do not wrap** at either end.
+- [X] T065 [P] [US3] Right expands then descends; Left collapses then ascends; Home/End jump.
+- [X] T066 [P] [US3] ⚠️ **Assert the announced NAME of a row directly** — its own name only, not
       its badges, not its action labels, and not its subtree when expanded. This is the assertion
       the source application omitted while shipping four *correct* `aria-*` assertions
       (`AGENTS.md` R-014).
-- [ ] T067 [P] [US3] Position and set size count **rendered** siblings. Scope the guard to a
+- [X] T067 [P] [US3] Position and set size count **rendered** siblings. Scope the guard to a
       search-filtered state so it **can** fail — the equivalent guard in the source application
       could not, because privacy is filtered upstream of the count.
-- [ ] T068 [P] [US3] Role, `tabindex` and every `aria-*` sit on the **same** element.
-- [ ] T069 [P] [US3] axe reports zero criticals in light **and** dark.
-- [ ] T070 [US3] **Watch T063–T069 fail**; record REDs. ⚠️ **T067 is the one to distrust** — if it
+- [X] T068 [P] [US3] Role, `tabindex` and every `aria-*` sit on the **same** element.
+- [X] T069 [P] [US3] axe reports zero criticals in light **and** dark.
+- [X] T070 [US3] **Watch T063–T069 fail**; record REDs. ⚠️ **T067 is the one to distrust** — if it
       passes immediately, the guard is measuring something downstream of the real guarantee.
 
 ### Implementation
 
-- [ ] T071 [US3] Roving tabindex; one focusable row at a time.
-- [ ] T072 [US3] `onTreeKeydown` / `onTreeFocusOut` traversal in `resources/js/tree.js`.
-- [ ] T073 [US3] ARIA on the treeitem: level, position, set size, expanded, and
+- [X] T071 [US3] Roving tabindex; one focusable row at a time.
+- [X] T072 [US3] `onTreeKeydown` / `onTreeFocusOut` traversal in `resources/js/tree.js`.
+- [X] T073 [US3] ARIA on the treeitem: level, position, set size, expanded, and
       `aria-labelledby` pointing at the name span **alone**.
-- [ ] T074 [US3] Chevron decorative to assistive technology (`aria-hidden`, `tabindex="-1"`)
+- [X] T074 [US3] Chevron decorative to assistive technology (`aria-hidden`, `tabindex="-1"`)
       rather than labelled — the row already announces the state (FR-038).
-- [ ] T075 [US3] Focus ring via package CSS. ⚠️ `outline-none` zeroes `outline-style` while a
+- [X] T075 [US3] Focus ring via package CSS. ⚠️ `outline-none` zeroes `outline-style` while a
       width utility only sets width — the ring then has width and colour but no style. Verify the
       computed value live in both schemes.
-- [ ] T076 [US3] ⚠️ If the page uses any collapsible section, check its collapse button has an
+- [X] T076 [US3] ⚠️ If the page uses any collapsible section, check its collapse button has an
       accessible name. Filament's own component ships `aria-label=""`, which is a critical
       violation the package would inherit (PKG-01 § Traps).
 

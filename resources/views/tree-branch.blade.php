@@ -37,7 +37,10 @@
         aria-level="{{ $level }}"
         aria-posinset="{{ $position }}"
         aria-setsize="{{ $setSize }}"
-        @if ($hasChildren) aria-expanded="true" @endif
+        @if ($hasChildren)
+            aria-expanded="true"
+            x-bind:aria-expanded="isExpanded(@js((string) $key)) ? 'true' : 'false'"
+        @endif
     >
         {{--
             ⚠️ Drag starts ONLY from this handle, so activating a row action never
@@ -57,7 +60,12 @@
                 already announces its expanded state, and a control duplicating a
                 state already announced is noise (spec FR-038, AGENTS.md R-016).
             --}}
-            <span class="ltree-chevron ltree-chevron-open" aria-hidden="true" tabindex="-1">›</span>
+            <span
+                class="ltree-chevron"
+                x-bind:class="isExpanded(@js((string) $key)) ? 'ltree-chevron-open' : ''"
+                aria-hidden="true"
+                tabindex="-1"
+            >›</span>
         @endif
 
         <span id="{{ $nameId }}" class="ltree-row-name">{{ $node->getAttribute(\Rolland\Tree\Support\TreeColumns::tiebreaker() ?? $node->getKeyName()) }}</span>
@@ -76,7 +84,18 @@
     @endif
 
     @if ($hasChildren)
-        <div class="ltree-children" role="group">
+        {{--
+            ⚠️ `x-show`, not `x-if`. A collapsed branch must stay in the DOM: the
+            rows inside it are still members of their group, and removing them
+            would make the rendered set the package reports back to the server
+            depend on what the user happened to have open.
+        --}}
+        <div
+            class="ltree-children"
+            role="group"
+            data-ltree-children-of="{{ $key }}"
+            x-show="isExpanded(@js((string) $key))"
+        >
             @foreach ($children as $child)
                 @include('tree::tree-branch', [
                     'node' => $child,

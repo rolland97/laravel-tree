@@ -203,3 +203,63 @@ The fixture stopped choosing a bad colour. The package was **not** "fixed" by
 overriding the host's palette — inheriting the host's accent rather than defining
 one is R-021, and overriding it is the one thing it must not do. Worth telling
 hosts: laravel-tree cannot rescue a panel whose own primary fails contrast.
+
+---
+
+## T070 — US3 keyboard and ARIA guards (T063–T069)
+
+**Absence red observed** on `--testsuite=browser --filter=KeyboardTraversal`:
+`10 failed, 12 passed`.
+
+⚠️ **Several of the 12 "passes" were VACUOUS**, and are recorded because the
+number alone is misleading. With no traversal implemented, focus never moved — so
+`it moves back up through the displayed rows` and `it ascends to the parent with
+Left` passed by asserting that focus was still where it started. Absence red is
+even weaker here than it was for US1: a traversal test can pass simply because
+nothing happens.
+
+### Mutation red
+
+| # | Mutation | Guards reddened |
+|---|---|---|
+| K1 | count the TRUE group instead of the rendered siblings | 1 — `it counts only the rendered siblings in the set size` |
+| K2 | drop `aria-labelledby`, so the treeitem names itself from its contents | 4 — all three name guards **and** the same-element guard |
+| K3 | remove the roving tabindex | 2 — both tab-stop guards *(see F7)* |
+| K4 | let arrow traversal wrap | 2 — both no-wrap guards |
+| K5 | make Left always ascend, never collapse | 3 |
+
+### ⚠️ T067 — the guard tasks.md said to distrust
+
+T070 warns: *"T067 is the one to distrust — if it passes immediately, the guard is
+measuring something downstream of the real guarantee."*
+
+**It did pass immediately.** Investigated with K1, which makes `nodesByParent()`
+ignore the search filter so the count describes the true group. That reddened it.
+
+**Verdict**: the guard discriminates. It passed on first run because the design
+was already correct — `aria-setsize` is rendered from the already-filtered
+grouping, so the count cannot describe rows that were not rendered. The suspicion
+was right to raise and the answer is benign, which is only knowable because the
+mutation was run.
+
+### ⚠️ Finding F7 — a mutation that does not APPLY looks exactly like a guard that cannot fail
+
+K3 reported "nothing reddened" on its first run. That is the precise signature
+`AGENTS.md` R-023 says to investigate — and the cause was not the guard at all:
+the `perl` substitution's escaping never matched, so **the mutation was never
+applied**. The suite was green because the code was unchanged.
+
+Applied properly, K3 reddens both tab-stop guards.
+
+**The methodological lesson, recorded because it will recur**: before concluding
+that a guard cannot be made to fail, confirm the mutation actually landed. A
+silent no-op mutation and an unfailable guard produce identical output, and only
+one of them is a finding.
+
+### T076 — the empty-accessible-name trap
+
+Filament's own collapsible-section component ships `aria-label=""`, a critical
+violation inherited merely by using it. This page uses no collapsible section, so
+nothing is currently wrong; two guards were added anyway, to catch the day one is
+introduced. An empty `aria-label` is worse than none — it overrides the name the
+element would otherwise have computed.
