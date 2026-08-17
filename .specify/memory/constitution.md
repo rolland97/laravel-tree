@@ -27,13 +27,18 @@ Templates and artifacts requiring updates:
        section exists; no edit needed. Plans derive real gates from this file.
   ✅ .specify/templates/spec-template.md   — no constitution-driven mandatory
        sections added or removed; no edit needed.
-  ⚠ .specify/templates/tasks-template.md  — its test-task guidance says tests
-       are OPTIONAL. Principle I makes them mandatory here. Resolve per-feature
-       in tasks.md rather than editing the shared template, matching how
+  ✅ .specify/templates/tasks-template.md  — its test-task guidance says tests
+       are OPTIONAL. Principle I makes them mandatory here. Resolved per-feature
+       in specs/001-tree-v1/tasks.md, which overrides the template default in its
+       own opening section, rather than editing the shared template — matching how
        filament-tours handled the same conflict.
-  ⚠ README.md                             — does not exist yet. When written it
-       MUST NOT tell hosts to publish a stylesheet or add an @source glob;
-       Principle VI forbids requiring a host build step.
+  ✅ README.md                             — WRITTEN during 001-tree-v1. It does
+       not tell hosts to publish a stylesheet or add an @source glob. It states
+       the QUALIFIED form of Principle VI's claim rather than the overclaim:
+       "no bundler, no npm, no theme change, and no step a Filament app does not
+       already run" — because `php artisan filament:assets` IS a command, even
+       though Filament's installer already wires it into post-autoload-dump.
+       See research.md R6, which corrected this principle's own wording.
   ✅ AGENTS.md                             — WRITTEN 2026-08-14, hours after
        ratification, which is why this document is already at 1.0.1. 40 rules,
        each tagged [ratified] / [inherited] / [pending artifact] according to

@@ -8,10 +8,19 @@ source ever disagree, **the source wins and this file is the bug**.
 **Scope**: this file governs planning and implementation in this repository. It is loaded as a
 mandatory gate before `/speckit-plan` (`.specify/extensions.yml` → `hooks.before_plan`).
 
-⚠️ **Read this before trusting a citation.** This repository currently contains **no
-`composer.json`, no `phpunit.xml`, no CI workflow and no `src/`** — the plan has not run yet.
-So unlike the equivalent file in `filament-tours`, most rules here cite a **decision document**
-rather than a config file. Each rule is tagged:
+⚠️ **Read this before trusting a citation.** When this file was written the repository contained
+**no `composer.json`, no `phpunit.xml`, no CI workflow and no `src/`**, so most rules cited a
+**decision document** rather than the config file that would eventually enforce them.
+
+**That is no longer true.** `composer.json`, `phpunit.xml.dist`, `phpstan.neon.dist`, `pint.json`,
+`.github/workflows/tests.yml` and `src/` all exist, and the four rules that were tagged
+`[pending artifact]` — R-029, R-031, R-032, R-033 — have been **re-cited against the real files
+and retagged `[ratified]`**, each naming the specific setting that enforces it.
+
+⚠️ Note for anyone reconciling documents: `CLAUDE.md` says there are **five** `[pending artifact]`
+rules. There were four. The count was wrong when written; the rules themselves were not.
+
+Each rule is tagged:
 
 - **[ratified]** — the source exists in this repository now and can be read today.
 - **[inherited]** — the source is in the consumer application, which this package is
@@ -162,7 +171,9 @@ rather than a config file. Each rule is tagged:
   and dark**. A test harness serves no compiled CSS, so no assertion in it can prove a focus ring
   is visible or a colour resolves. *Source: constitution § Development Workflow.* **[ratified]**
 - **R-029** — Tests MUST NOT depend on execution order and MUST NOT print. *Source: constitution
-  Principle I.* **[pending artifact — re-cite against `phpunit.xml.dist` once the plan creates it.]**
+  Principle I.* **[ratified — `phpunit.xml.dist`: `executionOrder="random"`,
+  `beStrictAboutOutputDuringTests="true"`, `failOnWarning`, `failOnRisky`,
+  `failOnEmptyTestSuite`.]**
 - **R-030** — ⚠️ Renaming a method is a real safety mechanism; **named arguments are not**. A
   Livewire component test dispatches through the container's method injection, which matches by
   name and **silently discards unknown keys** — a probe passed two arguments the method did not
@@ -173,18 +184,19 @@ rather than a config file. Each rule is tagged:
 
 - **R-031** — PHPStan over `src` and `config` at a level that MUST NOT be lowered. Do not add new
   code to a baseline to silence an error. *Source: constitution § Platform and Toolchain.*
-  **[pending artifact — re-cite against `phpstan.neon.dist`.]**
+  **[ratified — `phpstan.neon.dist`: `level: 8` over `src` and `config`, no baseline.]**
 
   > Static analysis is load-bearing here, not cosmetic: in the source application it caught ids
   > plucked as `array<mixed>` being compared **strictly**, so a key arriving from the driver as a
   > numeric string would never have matched its own group.
 
 - **R-032** — Pint owns formatting. Do not hand-format against it. *Source: constitution §
-  Platform and Toolchain.* **[pending artifact — re-cite against `pint.json`.]**
+  Platform and Toolchain.* **[ratified — `pint.json`, `laravel` preset.]**
 - **R-033** — CI actions MUST be pinned to a full commit SHA with the human-readable version in a
   trailing comment, and every workflow MUST declare an explicit least-privilege `permissions:`
-  block. *Source: constitution § Platform and Toolchain.* **[pending artifact — re-cite against
-  `.github/workflows/`.]**
+  block. *Source: constitution § Platform and Toolchain.* **[ratified —
+  `.github/workflows/tests.yml`: 12 actions pinned to full commit SHAs with trailing version
+  comments, 0 unpinned, and an explicit `permissions:` block on every job.]**
 - **R-034** — Conventional Commits, lowercase descriptive subject, saying what changed and **why it
   mattered**. Do not commit, push, tag, or release unless asked. *Source: constitution §
   Development Workflow.* **[ratified]**

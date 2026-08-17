@@ -16,6 +16,7 @@ use Filament\Support\SupportServiceProvider;
 use Filament\Tables\TablesServiceProvider;
 use Filament\Widgets\WidgetsServiceProvider;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\View;
 use Livewire\LivewireServiceProvider;
 use Rolland\Tree\Tests\Fixtures\Panel\TestPanelProvider;
 
@@ -98,5 +99,16 @@ abstract class BrowserTestCase extends TestCase
         // Without this the page links a stylesheet that 404s, and every styling
         // assertion would pass vacuously against an unstyled page.
         $this->artisan('filament:assets')->run();
+
+        // ⚠️ Test-only views live under tests/, NOT in the package's shipped
+        // resources/views. They were there once, and `git archive` showed the R10
+        // spike page and a fixture leaf slot being distributed to consumers —
+        // development scaffolding inside the runtime archive, which is exactly what
+        // constitution Principle VI / AGENTS.md R-036 forbids.
+        //
+        // Prepended to the `tree` NAMESPACE rather than to `view.paths`: a
+        // namespaced view resolves from its namespace hints, so a path added to
+        // view.paths would never be consulted for `tree::spike`.
+        View::prependNamespace('tree', __DIR__.'/Fixtures/views');
     }
 }

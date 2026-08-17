@@ -308,16 +308,16 @@ code at all). Parallelising the stories destroys the proof.
 
 ## Phase 8: Polish, verification and the release gate
 
-- [ ] T093 [P] [POLISH] Re-cite the five `[pending artifact]` rules in `AGENTS.md` against the
+- [X] T093 [P] [POLISH] Re-cite the five `[pending artifact]` rules in `AGENTS.md` against the
       files T003–T005/T008 created, retagging each `[ratified]`. ⚠️ A rule still citing an
       intention after its artifact exists is drift.
-- [ ] T094 [P] [POLISH] Update the constitution's sync impact report: `README.md` now exists.
+- [X] T094 [P] [POLISH] Update the constitution's sync impact report: `README.md` now exists.
 - [ ] T095 [POLISH] Run every procedure in `quickstart.md` § Verification.
 - [ ] T096 [POLISH] `/speckit-analyze` for cross-artifact consistency.
 - [ ] T097 [POLISH] `/speckit-superb-critique`. ⚠️ **Run this before the branch is finished, not
       only at the end** — on the last comparable slice it found three gaps that eleven guards and
       2,313 passing tests did not, every one between the spec's words and what shipped.
-- [ ] T098 [POLISH] Confirm the distribution archive carries runtime only (quickstart.md § Release
+- [X] T098 [POLISH] Confirm the distribution archive carries runtime only (quickstart.md § Release
       gate).
 - [ ] T099 [POLISH] ⚠️ **SC-011 screen-reader walk** — the ten steps in `quickstart.md`. Needs a
       machine with a real screen reader and **working audio**. **If no such machine is available,

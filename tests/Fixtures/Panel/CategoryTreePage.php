@@ -81,7 +81,7 @@ final class CategoryTreePage extends TreePage
             return null;
         }
 
-        return view('tree::testing.leaf-slot', ['node' => $node]);
+        return view('tree::leaf-slot', ['node' => $node]);
     }
 
     protected function confirmationFor(Model $node, ?TreeNode $newParent): ?string
