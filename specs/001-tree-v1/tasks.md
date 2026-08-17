@@ -40,8 +40,9 @@ per [plan.md](plan.md) § Project Structure.
 **Purpose**: A repository that builds, lints, analyses and runs three empty suites green.
 
 - [X] T001 [SETUP] Create `composer.json`: name `rolland97/laravel-tree`, PHP `^8.3`,
-      `illuminate/database` + `illuminate/support` `^11.0|^12.0|^13.0`,
-      `staudenmeir/laravel-adjacency-list` `^1.26`. ⚠️ `filament/filament ^5.0` goes in
+      `illuminate/database` + `illuminate/support` ~~`^11.0|^12.0|^13.0`~~ **`^12.0|^13.0`**,
+      `staudenmeir/laravel-adjacency-list` ~~`^1.26`~~ **`^1.24`** — the versions in this task
+      were unsatisfiable together and Laravel 11 is uninstallable; see constitution 1.1.0. ⚠️ `filament/filament ^5.0` goes in
       `require-dev` and `suggest` **only** — never `require` (`AGENTS.md` R-001).
 - [X] T002 [SETUP] PSR-4 autoload: `Rolland\Tree\` → `src/`, `Rolland\Tree\Tests\` → `tests/`.
 - [X] T003 [P] [SETUP] `pint.json` (laravel preset). ⚠️ Re-cite `AGENTS.md` R-032 against this

@@ -219,10 +219,26 @@ Public Livewire entry points on the page: `placeNode(...)`, `confirmPendingMove(
 any check made for presentation. The keyboard refuses a pick-up early as a *courtesy*; that
 refusal is not the guard.
 
-### `Rolland\Tree\Filament\Testing\AssertsTree`
+### ~~`Rolland\Tree\Filament\Testing\AssertsTree`~~ — **RETRACTED, never shipped**
 
-Assertion helpers hosts may use in their own suites. Explicitly public, and explicitly **not**
-required — a host may assert against its own markup instead.
+⚠️ **AMENDMENT (during implementation, 001-tree-v1).** This entry promised assertion helpers
+hosts could use in their own suites. **They were never built**, no task in `T001`–`T100` covered
+them, and `/speckit-analyze` found the gap: a documented public API that does not exist.
+
+**Retracted rather than written**, and the reason is this document's own logic. The entry itself
+said the helpers were *"explicitly **not** required — a host may assert against its own markup
+instead."* Building them now would mean designing public surface with **zero consumers**,
+immediately before the adoption slice that would show what a host actually needs. That is the
+mistake `AGENTS.md` R-035 names for tags — *"an API frozen without a consumer is frozen against
+guesses"* — and it applies to surface area just as it does to versions.
+
+**Migration**: none. Nothing was ever published under this name, so nothing can depend on it.
+
+**If it comes back**, it should arrive from the consumer's adoption asking for it, with the
+assertions that adoption actually wanted. ⚠️ Two things that must be settled then, and were
+already visible when a draft was sketched: it uses no Filament, so `src/Filament/Testing/` is
+probably the wrong home; and it needs `phpunit/phpunit`, which is a dev dependency, so it must be
+scoped to tests or declared in `suggest`.
 
 ---
 

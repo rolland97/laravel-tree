@@ -40,10 +40,11 @@ jobs:
         # these legs could never have gone green and no host could adopt the
         # package on Laravel 11 anyway.
         #
-        # ⚠️ This contradicts plan.md and the constitution, which both say
-        # ^11 | ^12 | ^13. The disagreement is reported rather than papered over:
-        # advertising support for a framework version that cannot be installed
-        # securely is a claim, not a capability.
+        # ⚠️ plan.md and the constitution said ^11 | ^12 | ^13 when this was
+        # written. Both have since been amended (constitution 1.1.0) so every
+        # document now agrees with what actually installs — advertising support
+        # for a framework version that cannot be installed securely is a claim,
+        # not a capability.
         laravel: ['12', '13']
         dependency-version: [prefer-lowest, prefer-stable]
         include:

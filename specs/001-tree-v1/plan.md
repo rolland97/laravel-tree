@@ -23,8 +23,15 @@ asset manager, so no consumer needs a bundler or a theme change.
 
 **Language/Version**: PHP 8.3+
 
-**Primary Dependencies**: `illuminate/database` and `illuminate/support` ^11 | ^12 | ^13;
-`staudenmeir/laravel-adjacency-list` ^1.26. Filament v5 in `require-dev` and `suggest` only.
+**Primary Dependencies**: `illuminate/database` and `illuminate/support` ^12 | ^13;
+`staudenmeir/laravel-adjacency-list` ^1.24. Filament v5 in `require-dev` and `suggest` only.
+
+⚠️ **Amended during implementation** (constitution 1.1.0). This said `^11 | ^12 | ^13` with
+adjacency-list `^1.26`, which was **internally unsatisfiable**: that release requires
+`illuminate/database ^13.0` only, so `^12` could never resolve. Laravel 11 is dropped outright —
+all 108 published 11.x releases carry unresolved security advisories, so Composer's default audit
+refuses to install them and no host could have adopted the package there. Found by attempting each
+combination rather than trusting the stated one.
 
 **Storage**: The host's database, through the host's own Eloquent model. The package owns no
 tables and ships its schema change as a publishable stub.
@@ -145,8 +152,7 @@ src/
 │   └── UnreachableReferenceException.php
 └── Filament/                        # the bridge — loaded only when Filament is present
     ├── FilamentTreeServiceProvider.php
-    ├── Pages/TreePage.php           # abstract; the host extends it
-    └── Testing/AssertsTree.php      # ⚠️ NOT BUILT — see note below
+    └── Pages/TreePage.php           # abstract; the host extends it
 
 config/tree.php                      # parent column, position column, tiebreaker
 database/migrations/add_tree_columns.php.stub
@@ -169,10 +175,12 @@ quietly deleted:**
 - `Concerns/InteractsWithTree.php` was never created. Its work — the host hooks, the read
   helpers, the committing entry points — is all on `TreePage` itself, and splitting it across a
   trait would have added a seam with nothing on either side of it. Removed from the structure.
-- `Testing/AssertsTree.php` is **still missing**, and unlike the above it is promised in
-  `contracts/public-api.md` as **public surface**. No task in T001–T100 covers it, so it was
-  never scheduled. It must be either built or retracted from the contract; a documented public
-  API that does not exist is worse than either. Found by `/speckit-analyze` (T096).
+- `Testing/AssertsTree.php` was promised in `contracts/public-api.md` as **public surface**,
+  was never built, and no task in T001–T100 covered it. Found by `/speckit-analyze` (T096) and
+  **RETRACTED** rather than written: the contract itself described the helpers as not required,
+  and building public surface with no consumer immediately before the adoption slice is the
+  mistake R-035 names. Nothing was published under the name, so the migration is empty. See the
+  amendment in `contracts/public-api.md`.
 
 **Structure Decision**: Single package with a conditionally-registered bridge, per
 `the consumer's package-documentation rule` rule 2 in the consumer's repository. Not split into two repositories:

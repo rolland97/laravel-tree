@@ -683,3 +683,55 @@ the reason. `T096` and `T097` marked complete.
 was never scheduled. Left open deliberately: building it or retracting it from the
 contract is a design decision, and a documented public API that does not exist is
 worse than either choice made explicitly.
+
+---
+
+## E1 — `AssertsTree` RETRACTED, and D1 — constitution amended to 1.1.0
+
+### E1 — retracted rather than written
+
+`contracts/public-api.md` declared `Rolland\Tree\Filament\Testing\AssertsTree` as
+public surface. It was never built and no task in T001–T100 covered it.
+
+**Retracted**, on this document's own logic: the entry itself described the
+helpers as *"explicitly not required — a host may assert against its own markup
+instead."* Building them now would mean designing public surface with **zero
+consumers**, immediately before the adoption slice that would show what a host
+actually needs — the mistake `AGENTS.md` R-035 names for tags, applied to surface
+area. Migration: none; nothing was ever published under the name.
+
+⚠️ Two problems were already visible in a draft and are recorded for whenever it
+returns: it uses no Filament, so `src/Filament/Testing/` is the wrong home; and it
+needs `phpunit/phpunit`, a dev dependency, so it must be test-scoped or declared
+in `suggest`.
+
+### D1 — constitution 1.0.1 → **1.1.0**
+
+§ Platform and Toolchain now reads `^12 | ^13` and adjacency-list `^1.24`.
+
+**MINOR, not MAJOR**: no principle was affected — this is the Platform section.
+Nothing forbidden became permitted and nothing required became optional. The
+amendment block records the principle affected (none), the reason, what is traded
+away (support for an EOL framework the project never actually had), and the
+migration (none — code, CI and plan were corrected first, when the contradiction
+was found by *trying* each combination).
+
+⚠️ **The constitution was the last document still claiming Laravel 11.** Sweeping
+for it afterwards found two stragglers the amendment itself would have missed:
+
+- **`README.md` said "Laravel 11, 12 or 13"** — the HOST-FACING claim, and the one
+  that matters most. A host would have read it, tried, and been refused by
+  Composer's audit with no idea why.
+- `tasks.md` T001 still specified the unsatisfiable pairing.
+
+**The lesson**: amending the authority is not the same as fixing the claim. The
+claim lives wherever it was repeated, and the copy a consumer reads is rarely the
+one under review.
+
+### Also found while sweeping — a dead link in shipped documentation
+
+`README.md` pointed hosts at `specs/001-tree-v1/quickstart.md` for the SC-011
+status. `specs/` is **`export-ignore`d**, so that path does not exist in the
+distributed package: a broken link for every reader who installed it. The SC-011
+status is now stated inline, including that the walk has **not** happened and is
+reported unproved rather than inferred from the automated checks.

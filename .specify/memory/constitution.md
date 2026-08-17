@@ -195,10 +195,19 @@ published, so archive hygiene is a release blocker rather than polish.
 
 ## Platform and Toolchain Constraints
 
-**Platform**: PHP 8.3+. `illuminate/database` and `illuminate/support` ^11 | ^12 | ^13, and
-`staudenmeir/laravel-adjacency-list` ^1.26. The Filament bridge targets v5. Support the full CI
+**Platform**: PHP 8.3+. `illuminate/database` and `illuminate/support` ^12 | ^13, and
+`staudenmeir/laravel-adjacency-list` ^1.24. The Filament bridge targets v5. Support the full CI
 matrix rather than the local version; a change that passes only on the newest combination is a
 broken change.
+
+⚠️ **Laravel 11 was dropped in 1.1.0, and this is not a loosening.** Every one of the 108
+published `laravel/framework` 11.x releases carries unresolved security advisories —
+`PKSA-mdq4-51ck-6kdq` alone spans `>=11.0.0,<12.0.0` with no patched release in the line — so
+Composer's default `block-insecure` audit refuses to install any of them. The version claim could
+not be honoured by any host, and the CI legs asserting it could never have gone green.
+`^1.24` rather than `^1.26` because `staudenmeir/laravel-adjacency-list` pins one Laravel per
+minor: `^1.26` requires `illuminate/database ^13.0` **only**, which silently made `^12` and `^13`
+support mutually exclusive.
 
 **Static analysis**: PHPStan over `src` and `config` at a level that MUST NOT be lowered. New code
 MUST NOT be added to the baseline to silence an error. Static analysis is load-bearing here rather
@@ -289,7 +298,40 @@ violation explicitly in its Complexity Tracking section rather than omitting the
 different rule source for this file is permitted only when this file is absent or unfilled, and MUST
 be labelled as a substitution rather than reported as a pass.
 
-**Version**: 1.0.1 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-14
+**Version**: 1.1.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-17
+
+<!--
+AMENDMENT 1.0.1 → 1.1.0 (2026-08-17)
+MINOR. § Platform and Toolchain Constraints materially changed: Laravel 11 is no
+longer a supported target, and the adjacency-list floor moved from ^1.26 to ^1.24.
+
+PRINCIPLE AFFECTED: none. This is the Platform section, not a principle. Nothing
+that was forbidden is now permitted, and nothing that was required is now optional
+— which is why this is MINOR rather than MAJOR.
+
+REASON: the previous wording stated a fact that is no longer true. All 108
+published laravel/framework 11.x releases are affected by unresolved security
+advisories (PKSA-mdq4-51ck-6kdq spans >=11.0.0,<12.0.0 with no patched release),
+so Composer's default block-insecure audit refuses to install them. The package
+could not have been installed on Laravel 11 by any host, and the CI legs asserting
+that support could never have passed. Separately, staudenmeir/laravel-adjacency-list
+pins one Laravel per minor — ^1.26 requires illuminate/database ^13.0 ONLY — so
+the old pairing of ^1.26 with ^11|^12|^13 was internally unsatisfiable.
+
+WHAT IS TRADED AWAY: support for an end-of-life framework version that cannot be
+installed securely. Stated explicitly per the amendment procedure, though it is a
+capability the project never actually had.
+
+MIGRATION: none for anything built. composer.json, the CI matrix and plan.md were
+already corrected during 001-tree-v1 when the contradiction was found by trying to
+install each combination; this amendment brings the constitution into line with
+what was verified rather than the reverse. No consumer exists yet — nothing is
+tagged or published.
+
+DISCOVERED BY: attempting each matrix combination locally rather than trusting the
+stated one, which is this document's own "a quoted constraint is a claim" rule
+applied to itself.
+-->
 
 <!--
 AMENDMENT 1.0.0 → 1.0.1 (2026-08-14)

@@ -47,7 +47,7 @@ turn that refusal into a no-op. If you genuinely render everything, pass everyth
 | | |
 |---|---|
 | PHP | 8.3+ |
-| Laravel | 11, 12 or 13 |
+| Laravel | 12 or 13 |
 | Filament | 5.x — **optional**, bridge only |
 
 ## Install
@@ -165,11 +165,17 @@ be picked up, moved, put down and cancelled from the keyboard, with every transi
 that is a privacy requirement before it is a convention, because the true size discloses that a
 node exists which the actor may not see.
 
-⚠️ **What is proved, and what is not.** Automated accessibility checks and accessibility-tree
-dumps are run against this package. Neither proves that announcements work as *heard sentences*
-— axe proves a name exists, a dump proves the data a screen reader receives. See
-[`specs/001-tree-v1/quickstart.md`](specs/001-tree-v1/quickstart.md) § SC-011 for the current
-status of the screen-reader walk.
+⚠️ **What is proved, and what is not.** Automated accessibility checks run over the rendered tree
+in both colour schemes and report zero violations, and each row's announced name is asserted
+directly against an accname implementation — its own name only, excluding its badges, its action
+labels and its subtree.
+
+**None of that proves the announcements work as heard sentences.** Axe proves a name *exists*; it
+cannot see a row that announces its entire subtree, because that is a name. The keyboard
+announcements have **not** been walked with a real screen reader by someone who can hear them, so
+that criterion is reported **unproved** rather than inferred from the automated checks. The
+source application shipped this exact tree with four *correct* ARIA assertions passing while the
+announced name was wrong.
 
 ## What is not here
 
