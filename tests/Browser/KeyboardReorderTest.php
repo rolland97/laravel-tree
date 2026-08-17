@@ -182,10 +182,16 @@ it('leaves the row no longer marked as grabbed after a put-down', function () {
     ))->toBeNull();
 });
 
-// ── T084 — exactly ONE move event for a completed interaction ───────────────
+// ── T084 — exactly ONE event for a completed interaction ────────────────────
 
-it('fires exactly one move event however many keystrokes produced it', function () {
+it('fires exactly one reorder event however many keystrokes produced it', function () {
     // ⚠️ Spec FR-041 / AGENTS.md R-011.
+    //
+    // ⚠️ Counts `SiblingsReordered` since PA-3, and asserts `NodeMoved` did NOT
+    // fire. A keyboard reorder never leaves its group, so it is a reorder — and
+    // recording it as a move was what left `SiblingsReordered` with no producer
+    // and cost a host's audit trail the written order. The guarantee is unchanged
+    // and now proved on the correct event, through a real browser.
     $page = visit('/admin/category-tree');
     focusRowByKey($page, $this->bravo->id);
 
@@ -204,7 +210,8 @@ it('fires exactly one move event however many keystrokes produced it', function 
         .' await new Promise(r => setTimeout(r, 25)); } return false; })()'
     );
 
-    expect(MoveCounter::$moved)->toBe(1);
+    expect(MoveCounter::$reordered)->toBe(1);
+    expect(MoveCounter::$moved)->toBe(0);
 });
 
 // ── T080 — cancel ───────────────────────────────────────────────────────────

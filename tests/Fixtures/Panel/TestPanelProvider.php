@@ -16,6 +16,7 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Event;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Rolland\Tree\Events\NodeMoved;
+use Rolland\Tree\Events\SiblingsReordered;
 use Rolland\Tree\Tests\Fixtures\MoveCounter;
 
 /**
@@ -40,6 +41,10 @@ final class TestPanelProvider extends PanelProvider
         // count events raised by a real HTTP request. See MoveCounter.
         Event::listen(NodeMoved::class, function (): void {
             MoveCounter::$moved++;
+        });
+
+        Event::listen(SiblingsReordered::class, function (): void {
+            MoveCounter::$reordered++;
         });
     }
 

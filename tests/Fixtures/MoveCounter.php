@@ -22,8 +22,20 @@ final class MoveCounter
 {
     public static int $moved = 0;
 
+    /**
+     * `SiblingsReordered`, counted separately since PA-3.
+     *
+     * ⚠️ A same-parent reorder now fires THIS rather than `NodeMoved`. Counting
+     * both, separately, is what keeps FR-041 provable: the guarantee is "exactly
+     * one event for one completed interaction", and a counter that summed them
+     * could not tell one reorder from one move — which is the very distinction the
+     * amendment exists to restore.
+     */
+    public static int $reordered = 0;
+
     public static function reset(): void
     {
         self::$moved = 0;
+        self::$reordered = 0;
     }
 }

@@ -341,6 +341,49 @@ disclosure the `unreachable_reference` wording avoids does not arise.
 
 **Migration**: none. Hosts that do not implement it keep their current behaviour.
 
+#### Which event a placement fires — ⚠️ AMENDMENT (during implementation, 001-tree-v1)
+
+`commit()` compares the destination parent with the node's **stored** parent and routes:
+
+| Placement | Action | Event |
+|---|---|---|
+| destination parent **differs** — a re-parent | `PlaceNode` → `MoveNode` | `NodeMoved` |
+| destination parent is **the same** — a reorder | `ResolveSiblingPlacement` → `ReorderSiblings` | `SiblingsReordered` |
+
+**Why.** `commit()` previously went `PlaceNode` → `MoveNode` → `NodeMoved` for *every*
+placement, and `grep -rn 'ReorderSiblings' src/ resources/` found no caller outside the
+action's own file. Two consequences, both real (the consumer's adoption, research F4 — **PA-3**):
+
+1. **`SiblingsReordered` had no producer.** The package shipped, and this document
+   published, an event nothing in the bridge could ever fire.
+2. **A host's audit trail lost the reorder.** A same-parent drag or keyboard reorder
+   recorded `moved` instead of `reordered`, discarding the written order and the "performed
+   on the parent, on nothing at the root" shape the source application has always had.
+
+⚠️ **The index still comes from `ResolveSiblingPlacement`, against the complete group.** The
+reorder path names a neighbour and asks the package where that falls; it does not count rows.
+The ordered keys handed to `ReorderSiblings` come from `SiblingGroup`, the single copy of the
+read order — so they cannot drift from the list the index was resolved against. This is
+constitution Principle II, and a reorder path that recomputed the order itself would have
+been a second copy of exactly the mapping that caused the defect.
+
+⚠️ **The root case is why `ReorderSiblings` took `$model`.** Root keys carry no model class
+and there is no parent to infer one from, so the bridge names `$node::class`. The amendment
+above that added the parameter and this one that finally calls it are the same story.
+
+⚠️ **PA-3 changes which action runs, NOT which moves are permitted.** `MoveNode` refuses a
+destination whose `isValidTreeTarget()` is false, so before this change a reorder inside an
+inactive parent was refused; `ReorderSiblings` asks nobody. The reorder path therefore asks
+the same question before writing. This is a **deliberate second copy** of that guard —
+`MoveNode` keeps its own for direct callers — and it is load-bearing rather than redundant:
+without it, adopting PA-3 would silently start *allowing* reorders inside a frozen parent, a
+widening no consumer requested. Do not tidy either copy away on the evidence that the suite
+stays green without it (see `checklists/validation-log.md` on guards held by two mechanisms).
+
+**Migration**: a host listening only for `NodeMoved` **stops hearing same-parent reorders**
+and must also listen for `SiblingsReordered`. That is the point of the amendment, and it is
+the one behavioural break in PA-1…PA-4.
+
 ### ~~`Rolland\Tree\Filament\Testing\AssertsTree`~~ — **RETRACTED, never shipped**
 
 ⚠️ **AMENDMENT (during implementation, 001-tree-v1).** This entry promised assertion helpers

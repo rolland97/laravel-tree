@@ -11,8 +11,11 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Rolland\Tree\Actions\PlaceNode;
+use Rolland\Tree\Actions\ReorderSiblings;
+use Rolland\Tree\Actions\ResolveSiblingPlacement;
 use Rolland\Tree\Contracts\TreeNode;
 use Rolland\Tree\Enums\SiblingPlacement;
+use Rolland\Tree\Exceptions\InvalidTargetException;
 use Rolland\Tree\Support\SiblingGroup;
 use Rolland\Tree\Support\TreeColumns;
 
@@ -499,13 +502,24 @@ trait InteractsWithTree
         }
 
         try {
-            app(PlaceNode::class)->handle(
-                $node,
-                $parent,
-                $reference,
-                $placement,
-                $renderedSiblingIds,
-            );
+            if ($this->isSameParentReorder($node, $parent)) {
+                // ⚠️ Package amendment PA-3. A same-parent placement is a REORDER,
+                // and reordering is what `ReorderSiblings` is for: it fires
+                // `SiblingsReordered` carrying the whole written order, which is
+                // the shape a host's audit trail wants — "these five, in this
+                // order", performed on the parent. Routing it through `PlaceNode`
+                // recorded it as a `NodeMoved` instead, and left the package
+                // shipping a public event with no producer anywhere in the bridge.
+                $this->reorder($node, $parent, $reference, $placement, $renderedSiblingIds);
+            } else {
+                app(PlaceNode::class)->handle(
+                    $node,
+                    $parent,
+                    $reference,
+                    $placement,
+                    $renderedSiblingIds,
+                );
+            }
         } catch (DomainException $exception) {
             $this->refuse($exception->getMessage());
         } finally {
@@ -600,6 +614,79 @@ trait InteractsWithTree
         }
 
         return [$node, $parent, $reference, $placement, $renderedSiblingIds];
+    }
+
+    /**
+     * Is this placement a reorder within the group the node is already in?
+     *
+     * ⚠️ Compares the node's STORED parent, never the group the render filed it
+     * under. This decision drives a WRITE, and an orphan is displayed at the root
+     * while still belonging to its real group — deciding from the display would
+     * rewrite the wrong group's order entirely.
+     */
+    protected function isSameParentReorder(Model $node, ?TreeNode $parent): bool
+    {
+        $destinationKey = $parent === null ? '' : (string) SiblingGroup::key($parent->getKey());
+        $currentParent = $node->getAttribute(TreeColumns::parent());
+
+        return $destinationKey === ($currentParent === null ? '' : (string) $currentParent);
+    }
+
+    /**
+     * Rewrite this node's own group so it lands beside the neighbour it named.
+     *
+     * ⚠️ The index still comes from `ResolveSiblingPlacement`, resolved against the
+     * COMPLETE group — exactly as `PlaceNode` would compute it. This method names a
+     * neighbour and asks the package where that falls; it never counts rows itself
+     * (constitution Principle II, `AGENTS.md` R-007).
+     *
+     * @param  list<int|string>  $renderedSiblingIds
+     */
+    protected function reorder(
+        Model&TreeNode $node,
+        ?TreeNode $parent,
+        ?TreeNode $reference,
+        SiblingPlacement $placement,
+        array $renderedSiblingIds,
+    ): void {
+        // ⚠️ Asked before the write, and deliberately duplicating the question
+        // `MoveNode` asks on the path this one replaces. PA-3 changes which action
+        // runs; it must not change which moves are PERMITTED. Without this, a
+        // reorder inside a parent the host says cannot receive children would
+        // start succeeding — a silent widening nobody requested. `MoveNode` keeps
+        // its own copy for direct callers, so both are load-bearing and neither is
+        // redundant with the other.
+        if ($parent !== null && ! $parent->isValidTreeTarget()) {
+            throw InvalidTargetException::make();
+        }
+
+        $index = app(ResolveSiblingPlacement::class)->handle(
+            $node,
+            $parent,
+            $reference,
+            $placement,
+            $renderedSiblingIds,
+        );
+
+        // The complete group in read order with the moved node removed — the very
+        // list that index was resolved against. There is exactly one copy of the
+        // read order in this package and it lives in `SiblingGroup`, so this cannot
+        // drift from what `ResolveSiblingPlacement` saw.
+        $ordered = SiblingGroup::for($node, $parent, $node->getKey());
+
+        // Clamped for the same reason `MoveNode` clamps: the index came from this
+        // same group, so an out-of-range value can only mean the group changed
+        // underneath us, and landing at the end is the safe answer.
+        array_splice($ordered, max(0, min($index, count($ordered))), 0, [SiblingGroup::key($node->getKey())]);
+
+        app(ReorderSiblings::class)->handle(
+            $parent,
+            $ordered,
+            // ⚠️ Named for the ROOT case, which is the entire reason `$model` was
+            // added to that signature: root keys carry no model class and there is
+            // no parent to infer one from, so the action refuses rather than guess.
+            $node::class,
+        );
     }
 
     /**
