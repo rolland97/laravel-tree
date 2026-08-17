@@ -438,6 +438,23 @@ abstract class TreePage extends Page
 
         [$node, $parent, $reference, $placement, $renderedSiblingIds] = $authorized;
 
+        // ⚠️ spec.md § Edge Cases: "A group contains exactly one node. Every
+        // reorder request is a no-op that must be REPORTED, not silently
+        // accepted." The keyboard already announced this while a node was held;
+        // the pointer did not, and worse, it still wrote and still fired
+        // NodeMoved — recording a move in the host's audit trail that the user
+        // never made.
+        //
+        // Scoped to a REORDER. Being an only child does not make a RE-PARENT a
+        // no-op, and a guard broad enough to refuse that would refuse real work.
+        if ($this->isOnlyChildReorder($node, $parent)) {
+            $this->report((string) __('tree::tree.announce.only_child', [
+                'name' => $this->treeNameFor($node),
+            ]));
+
+            return;
+        }
+
         try {
             app(PlaceNode::class)->handle(
                 $node,
@@ -525,6 +542,49 @@ abstract class TreePage extends Page
         return [$node, $parent, $reference, $placement, $renderedSiblingIds];
     }
 
+    /**
+     * Is this request a reorder inside a group whose only member is this node?
+     */
+    protected function isOnlyChildReorder(Model $node, ?TreeNode $parent): bool
+    {
+        $destinationKey = $parent === null ? '' : (string) SiblingGroup::key($parent->getKey());
+
+        if ($destinationKey !== $this->treeParentKeyFor($node)) {
+            // A re-parent, not a reorder. Nothing to report.
+            return false;
+        }
+
+        return count($this->nodesByParent()[$destinationKey] ?? []) <= 1;
+    }
+
+    /**
+     * The name shown for a node — the configured tie-breaker column, which is what
+     * the row renders and therefore what the actor would recognise.
+     */
+    protected function treeNameFor(Model $node): string
+    {
+        $column = TreeColumns::tiebreaker() ?? $node->getKeyName();
+
+        return (string) $node->getAttribute($column);
+    }
+
+    /**
+     * Tell the actor something that is not a refusal.
+     *
+     * ⚠️ Dispatched to the live region AND shown as a notification. A pointer user
+     * never hears the live region, and a screen-reader user should not depend on a
+     * toast; reporting to one surface only leaves half the audience uninformed.
+     */
+    protected function report(string $message): void
+    {
+        $this->dispatch('ltree-announce', message: $message);
+
+        Notification::make()
+            ->title($message)
+            ->info()
+            ->send();
+    }
+
     protected function placementFrom(string $placement): ?SiblingPlacement
     {
         foreach (SiblingPlacement::cases() as $case) {
@@ -538,6 +598,8 @@ abstract class TreePage extends Page
 
     protected function refuse(string $message): void
     {
+        $this->dispatch('ltree-announce', message: $message);
+
         Notification::make()
             ->title($message)
             ->danger()

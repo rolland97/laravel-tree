@@ -136,10 +136,31 @@ final class ReorderSiblings
      * Rewrite one group's order to the given keys. Fires SiblingsReordered once.
      *
      * @param  list<int|string>  $orderedKeys  the COMPLETE group, in the desired order
+     * @param  class-string<Model&TreeNode>|null  $model  required only when $parent is null
+     *
+     * @throws InvalidArgumentException when a root-level group names no model
      */
-    public function handle(?TreeNode $parent, array $orderedKeys): void;
+    public function handle(?TreeNode $parent, array $orderedKeys, ?string $model = null): void;
 }
 ```
+
+⚠️ **AMENDMENT (during implementation, 001-tree-v1).** `$model` was added because
+the signature as first written could not address a **root-level group at all**.
+The ordered keys are bare scalars carrying no model class, and the model was
+inferred from `$parent` — which a root group does not have. That made a documented
+public entry point throw for an entire class of groups.
+
+**Why a trailing optional parameter rather than a rename.** `AGENTS.md` R-030
+requires a *rename* when a signature's **meaning** changes, because a stale
+positional call would otherwise stay syntactically valid and silently mean
+something else. Appending a parameter moves no existing position, so every call
+written against the previous signature keeps its exact meaning. ⚠️ If either of
+the first two parameters ever changes meaning, **rename the method** — that rule
+is unchanged by this amendment.
+
+**Why it refuses rather than guessing.** With no parent and no model there is
+nothing to infer from, and a guess would silently reorder some other table's
+roots. Refusing is the safe direction.
 
 ### Events
 

@@ -55,6 +55,19 @@ function ltree(strings = {}) {
             this.$el.addEventListener('dragend', () => this.clearDrag())
 
             this.guardAgainstForeignMorphs()
+
+            // ⚠️ Reports raised by the SERVER — an only-child no-op, a refusal —
+            // reach the live region through here. Without this the page dispatches
+            // into nothing and a screen-reader user hears silence where a sighted
+            // user sees a notification.
+            window.addEventListener('ltree-announce', (event) => {
+                const detail = event.detail ?? {}
+                const message = detail.message ?? (Array.isArray(detail) ? detail[0] : null)
+
+                if (message) {
+                    this.announce(message)
+                }
+            })
         },
 
         /**

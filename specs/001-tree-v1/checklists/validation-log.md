@@ -468,3 +468,58 @@ than currently load-bearing. It stays, because the moment anything before the
 write consults it — computing rendered siblings server-side, say — the absence
 would silently serve a pre-write tree. This is the third finding of this shape
 (F1, F9, F10): correct code whose necessity a single mutation cannot demonstrate.
+
+---
+
+## I2 — a single-node group is now REPORTED, on both surfaces
+
+spec.md § Edge Cases: *"A group contains exactly one node. Every reorder request
+is a no-op that must be reported, not silently accepted."*
+
+The keyboard already announced `only_child` while a node was held. The **pointer**
+did not: dragging a sole child back onto its own parent silently did nothing — and
+still wrote, and still fired `NodeMoved`, recording a move in the host's audit
+trail that the user never made.
+
+`TreePage` now detects the case before committing and reports it to **both**
+surfaces: the live region (via an `ltree-announce` browser event the controller
+listens for) and a Filament notification. Reporting to one alone leaves half the
+audience uninformed — a pointer user never hears the live region, and a
+screen-reader user should not have to depend on a toast.
+
+⚠️ Scoped to a **reorder**. Being an only child does not make a **re-parent** a
+no-op, and a guard broad enough to refuse that would refuse real work.
+
+**Mutations, in both directions** — the second is the one that matters, because a
+guard can be wrong by being too eager as easily as by being absent:
+
+| Mutation | Guards reddened |
+|---|---|
+| remove the report entirely | 4 |
+| widen it to catch re-parents too | 1 — `it still moves an only child to a DIFFERENT parent` |
+
+## I3 — `ReorderSiblings` can now address a root-level group
+
+The keys it takes are bare scalars carrying no model class, and the model was
+inferred from `$parent`. A root group has none, so a documented public entry point
+**threw for an entire class of groups**.
+
+Amended in `contracts/public-api.md` with the reasoning, not patched silently:
+a trailing optional `$model`.
+
+⚠️ **Trailing and optional on purpose.** `AGENTS.md` R-030 requires a RENAME when
+a signature's *meaning* changes, because a stale positional call would otherwise
+stay syntactically valid and silently mean something else. Appending a parameter
+moves no existing position, so every call written against the old signature keeps
+its exact meaning and no rename is owed. If either of the first two ever changes
+meaning, the rename rule applies unchanged.
+
+⚠️ **It refuses rather than guessing.** With no parent and no model there is
+nothing to infer from, and a guess would silently reorder some other table's
+roots.
+
+**Mutation**: returning a guessed model instead of throwing reddens
+`it refuses a root-level reorder that names no model`.
+
+Proved against both fixtures (FR-045), and the root-level path is covered for
+ordering, contiguity, the event, and the event's null parent id.
