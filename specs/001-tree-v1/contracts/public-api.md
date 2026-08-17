@@ -278,14 +278,68 @@ implements or overrides:
 | `headerActions(): array` | no | Page-level actions |
 | `leafSlot(Model $node): ?View` | no | Non-node rows beneath a node |
 | `confirmationFor(Model $node, ?TreeNode $newParent): ?string` | no | Return a warning to require confirmation; `null` applies immediately |
+| `authorizeTreeMove(Model $node, ?TreeNode $newParent): bool` | no | ⚠️ The host's **permission** rule. Defaults to `true` |
 | `treeStrings(): array` | no | Override the announcement templates |
 
 Public Livewire entry points on the page: `placeNode(...)`, `confirmPendingMove()`,
 `cancelPendingMove()`.
 
-⚠️ **`placeNode()` re-checks the host's authorization on the committing call**, regardless of
-any check made for presentation. The keyboard refuses a pick-up early as a *courtesy*; that
-refusal is not the guard.
+⚠️ **`placeNode()` re-runs the host's `visibleQuery()` on the committing call**, and — since
+PA-2 — asks `authorizeTreeMove()` there too, regardless of any check made for presentation.
+The keyboard refuses a pick-up early as a *courtesy*; that refusal is not the guard.
+
+#### `authorizeTreeMove()` — ⚠️ AMENDMENT (during implementation, 001-tree-v1), **security**
+
+```php
+protected function authorizeTreeMove(Model $node, ?TreeNode $newParent): bool;
+```
+
+**The hole.** `authorizeMove()` resolved ids through the host's `visibleQuery()` and did
+nothing else, and **visibility is not permission**. The first real consumer calls
+`authorize('update', $category)` on every committing path and pins an actor holding `view`
+and **not** `update` being refused with nothing moved. Adopted as the package stood, **that
+actor's move would have succeeded** (the consumer's adoption, research F3 — requested as PA-2).
+
+⚠️ **This document asserted the opposite.** It previously read *"`placeNode()` re-checks the
+host's **authorization** on the committing call"*. It re-checked the host's **visibility**.
+A documented guarantee the implementation does not provide is worse than a missing one —
+a host reading that sentence would reasonably not write a check of its own — so correcting
+the wording is part of this amendment, not a tidy-up alongside it. (`AGENTS.md` R-037: a
+quoted constraint is a claim.)
+
+**Where it is asked, and why there.** Inside `authorizeMove()`, **after** the node and the
+destination parent are resolved from the host's own scope and **before** any reference work:
+
+- *after* resolution, so the host is handed real models rather than client-supplied ids —
+  a slot given the raw payload would push the resolution problem back out to every host,
+  and a host that answered `true` about an unresolved id would reopen the hole;
+- *before* references, so an actor who may not move this node learns nothing about which
+  neighbours exist.
+
+Because `placeNode()` and `confirmPendingMove()` both route through `authorizeMove()`, the
+host is asked on **every** committing path — including the confirming call, where an actor's
+permissions may have changed since the move was queued.
+
+**Two answers, both supported.**
+
+| Host writes | Result |
+|---|---|
+| `return false` | Soft refusal: `tree.refused.unauthorized` is announced and shown, nothing is written, the page stays |
+| `throw` (e.g. `$this->authorize('update', $node)`) | The exception is **not** caught — a 403. `commit()` catches `DomainException`, the refusal vocabulary, and `AuthorizationException` is deliberately not one |
+
+**Default `true`.** The package has no idea what a host's permissions are, and inventing one
+would be the package deciding (`AGENTS.md` R-003). ⚠️ A default of `true` fails *open*, which
+is the wrong direction for a permission check — it is chosen anyway because the alternative
+breaks every existing host into a tree that refuses everything, and because the package
+genuinely cannot answer the question. **A host that has permissions must implement this
+slot**; the package cannot detect that it has not.
+
+**New copy**: `tree.refused.unauthorized`, `'You cannot move :name.'`. Unlike the other three
+refusals it maps to **no exception type** — a host's `false` is an answer, not a refusal the
+package raises. It names the node because the actor *can* see it, so the exists/not-exists
+disclosure the `unreachable_reference` wording avoids does not arise.
+
+**Migration**: none. Hosts that do not implement it keep their current behaviour.
 
 ### ~~`Rolland\Tree\Filament\Testing\AssertsTree`~~ — **RETRACTED, never shipped**
 

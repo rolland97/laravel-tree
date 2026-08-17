@@ -18,6 +18,15 @@ return [
         'cycle' => 'A node cannot be moved inside itself or one of its own descendants.',
         'invalid_target' => 'That destination cannot receive children.',
         'unreachable_reference' => 'That neighbour is not one you could have aimed at.',
+
+        /*
+        | ⚠️ PA-2. Unlike the three above this maps to NO exception type: a host's
+        | permission answer is a `false`, not a refusal the package raises. It
+        | names the node because the actor CAN see it — the disclosure the
+        | `unreachable_reference` wording avoids does not arise here, and an
+        | unnamed refusal on a page of rows tells the actor nothing.
+        */
+        'unauthorized' => 'You cannot move :name.',
     ],
 
     /*

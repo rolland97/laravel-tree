@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rolland\Tree\Tests\Fixtures\Panel;
 
 use Filament\Actions\Action;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -31,6 +32,17 @@ final class CategoryTreePage extends TreePage
 
     /** Set by a test to simulate the actor's scope changing between render and commit. */
     public static bool $hideBravo = false;
+
+    /**
+     * How this host answers the PERMISSION question — `allow`, `deny` or `throw`.
+     *
+     * ⚠️ Visibility and permission are different questions, and this fixture
+     * answers them from different places on purpose: `$hideBravo` narrows
+     * `visibleQuery()`, this narrows `authorizeTreeMove()`. A fixture that drove
+     * both from one switch could not catch a package that conflated them — which
+     * is exactly the defect PA-2 exists to close.
+     */
+    public static string $moveAuthorization = 'allow';
 
     protected function visibleQuery(): Builder
     {
@@ -82,6 +94,22 @@ final class CategoryTreePage extends TreePage
         }
 
         return view('tree::leaf-slot', ['node' => $node]);
+    }
+
+    /**
+     * The host's permission rule (PA-2).
+     *
+     * `throw` mirrors the source application, which calls
+     * `$this->authorize('update', $category)` and lets the resulting
+     * `AuthorizationException` become a 403.
+     */
+    protected function authorizeTreeMove(Model $node, ?TreeNode $newParent): bool
+    {
+        return match (self::$moveAuthorization) {
+            'deny' => false,
+            'throw' => throw new AuthorizationException('This actor may not update that node.'),
+            default => true,
+        };
     }
 
     protected function confirmationFor(Model $node, ?TreeNode $newParent): ?string

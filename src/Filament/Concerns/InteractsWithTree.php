@@ -113,6 +113,38 @@ trait InteractsWithTree
     }
 
     /**
+     * May this actor move THIS node to THIS parent? The HOST decides.
+     *
+     * ⚠️ Requested as package amendment PA-2 by the first real consumer, which
+     * found a permission hole: `authorizeMove()` resolved ids through the host's
+     * `visibleQuery()` and did nothing else, and **visibility is not permission**.
+     * An actor holding `view` and not `update` could see a node, and could
+     * therefore move it. The contract claimed this was already checked; the code
+     * checked visibility.
+     *
+     * Defaults to `true`. The package has no idea what a host's permissions are,
+     * and it must not invent one (AGENTS.md R-003) — a host that wants a rule
+     * writes it here.
+     *
+     * Two shapes, both deliberate:
+     *
+     * - **return `false`** for a soft refusal — the actor is told, nothing is
+     *   written, and the page stays on screen;
+     * - **throw** — typically `$this->authorize('update', $node)`, whose
+     *   `AuthorizationException` becomes a 403. The package does not catch it;
+     *   `commit()` catches `DomainException`, which is the refusal vocabulary and
+     *   deliberately not this.
+     *
+     * Asked on EVERY committing path — `placeNode()` and `confirmPendingMove()` —
+     * because an actor's permissions can change between queueing a move and
+     * confirming it.
+     */
+    protected function authorizeTreeMove(Model $node, ?TreeNode $newParent): bool
+    {
+        return true;
+    }
+
+    /**
      * The announcement templates handed to the Alpine controller.
      *
      * ⚠️ Passed as the ARGUMENT to the x-data factory (research R7), so translation
@@ -521,6 +553,23 @@ trait InteractsWithTree
             if (! $parent instanceof Model || ! $parent instanceof TreeNode) {
                 return null;
             }
+        }
+
+        // ⚠️ PA-2, and the POSITION of this call is load-bearing.
+        //
+        // AFTER the node and the destination are resolved from the host's own
+        // scope, so the host is handed real models rather than client-supplied
+        // ids — a slot given the raw payload would make every host re-implement
+        // the visibility check to answer safely.
+        //
+        // BEFORE any reference work, so an actor who may not move this node
+        // learns nothing about which neighbours exist.
+        if (! $this->authorizeTreeMove($node, $parent)) {
+            $this->refuse((string) __('tree::tree.refused.unauthorized', [
+                'name' => $this->treeNameFor($node),
+            ]));
+
+            return null;
         }
 
         $reference = null;
