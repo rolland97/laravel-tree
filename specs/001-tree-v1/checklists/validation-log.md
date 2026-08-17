@@ -415,3 +415,56 @@ was wrong: US2 had an unmet functional requirement. The suite was green because
 the requirement had no test, not because it was satisfied. **A green suite is
 evidence about the tests that exist, and nothing at all about the ones that do
 not.**
+
+---
+
+## C3 — the C1 fix made the render N+1, and the suite stayed green
+
+| | queries to render |
+|---|---|
+| before C1's fix | **1** for 21 nodes |
+| after C1's fix | **45** for 21 nodes |
+| after C3's fix | **1** for 21 nodes, **1** for 101 |
+
+`treePositionFor()` and `treeSetSizeFor()` are called per row and each re-ran
+`nodesByParent()`, which queries; `visibleKeys()` ran it a third time. plan.md
+scopes this tree at "hundreds of nodes" — roughly 600 queries for one page.
+
+Fixed by memoising `nodesByParent()` and `searchVisibleIds()` in `protected`
+properties, so the cache lives exactly one request and is never serialised into
+the Livewire payload. Invalidated by `updatedTreeSearch()` and in a `finally`
+after every commit.
+
+### The guards, and why they are shaped as they are
+
+⚠️ **The efficiency guard compares two tree sizes rather than checking a
+threshold.** "Fewer than 100 queries" would have passed against BOTH the
+one-query render and the forty-five-query one, and caught nothing. Constant-in-N
+is the property that matters, so that is what is asserted — plus one absolute cap
+to pin the order of magnitude, because a constant 200 would also be wrong. A
+second case varies DEPTH rather than breadth, since a recursive include that
+queried per level would pass the breadth test.
+
+**Mutations**: un-memoising `nodesByParent()` reddens 3 guards.
+
+### ⚠️ Finding F10 — two staleness guards that could not fail, for two different reasons
+
+The guard on cache invalidation was written twice before it could discriminate.
+
+1. **Read `$page->instance()` after `->call()`** — passed against a page that never
+   forgot anything. Livewire builds a **new component instance per request**
+   (`spl_object_id` before ≠ after), so the instance being inspected never had its
+   cache populated at all.
+2. **Assert the HTML the call returned** — also passed. Within a request the write
+   happens BEFORE the first render, so the cache is not yet warm when it is
+   invalidated.
+
+Only a guard exercising one instance directly — populate, write, re-read — can
+fail, and it does, with `the page served the order it held BEFORE its own write`.
+
+⚠️ **What this says about the `finally` block**: on today's code paths nothing
+consults `nodesByParent()` before a write, so the invalidation is defensive rather
+than currently load-bearing. It stays, because the moment anything before the
+write consults it — computing rendered siblings server-side, say — the absence
+would silently serve a pre-write tree. This is the third finding of this shape
+(F1, F9, F10): correct code whose necessity a single mutation cannot demonstrate.

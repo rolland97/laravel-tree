@@ -43,6 +43,27 @@ abstract class TreePage extends Page
     public ?array $pendingMove = null;
 
     /**
+     * Per-request caches for the two reads the render repeats.
+     *
+     * ⚠️ `protected`, so Livewire neither serialises them into the payload nor
+     * carries them across requests — the lifetime that is correct here is exactly
+     * one request, which is what a protected property already gives.
+     *
+     * ⚠️ They MUST be forgotten after any write and whenever the search changes.
+     * `placeNode()` writes and Livewire then re-renders the SAME instance, so a
+     * cache that survived the write would draw the order the page had BEFORE the
+     * move and the user would watch their own drag undo itself.
+     *
+     * @var array<string, list<Model&TreeNode>>|null
+     */
+    protected ?array $treeGroupsCache = null;
+
+    /** @var list<int|string>|null */
+    protected ?array $treeSearchCache = null;
+
+    protected bool $treeSearchCacheResolved = false;
+
+    /**
      * The host's privacy scope. Required.
      *
      * @return Builder<Model&TreeNode>
@@ -108,6 +129,33 @@ abstract class TreePage extends Page
      * @return array<string, list<Model&TreeNode>>
      */
     public function nodesByParent(): array
+    {
+        return $this->treeGroupsCache ??= $this->readNodesByParent();
+    }
+
+    /**
+     * Forget the per-request caches.
+     *
+     * Called after every write and whenever the search term changes. Nothing else
+     * may invalidate them, because nothing else can change what this actor sees
+     * inside a single request.
+     */
+    protected function forgetTreeCache(): void
+    {
+        $this->treeGroupsCache = null;
+        $this->treeSearchCache = null;
+        $this->treeSearchCacheResolved = false;
+    }
+
+    public function updatedTreeSearch(): void
+    {
+        $this->forgetTreeCache();
+    }
+
+    /**
+     * @return array<string, list<Model&TreeNode>>
+     */
+    protected function readNodesByParent(): array
     {
         $parentColumn = TreeColumns::parent();
         $tiebreaker = TreeColumns::tiebreaker();
@@ -245,6 +293,20 @@ abstract class TreePage extends Page
      * @return list<int|string>|null
      */
     public function searchVisibleIds(): ?array
+    {
+        if ($this->treeSearchCacheResolved) {
+            return $this->treeSearchCache;
+        }
+
+        $this->treeSearchCacheResolved = true;
+
+        return $this->treeSearchCache = $this->readSearchVisibleIds();
+    }
+
+    /**
+     * @return list<int|string>|null
+     */
+    protected function readSearchVisibleIds(): ?array
     {
         $term = trim($this->treeSearch);
 
@@ -386,6 +448,11 @@ abstract class TreePage extends Page
             );
         } catch (DomainException $exception) {
             $this->refuse($exception->getMessage());
+        } finally {
+            // ⚠️ In `finally`, not after the call. A REFUSED move can still have
+            // been preceded by a successful one in the same request, and a cache
+            // left standing here would render a stale tree either way.
+            $this->forgetTreeCache();
         }
     }
 
