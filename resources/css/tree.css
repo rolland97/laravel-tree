@@ -57,7 +57,25 @@
     outline-style: solid;
     outline-width: 2px;
     outline-offset: 2px;
-    outline-color: rgb(var(--primary-600, 37 99 235));
+    /*
+     * ⚠️ `var(--primary-600, …)` used as a WHOLE colour, never wrapped in rgb().
+     *
+     * Filament v5 defines its accent as an oklch() colour —
+     * `--primary-600: oklch(0.666 0.179 58.318)` — so `rgb(var(--primary-600))`
+     * expands to `rgb(oklch(...))`, which is invalid CSS. The browser discards the
+     * whole declaration, the fallback never applies either, and `outline-color`
+     * silently falls back to currentColor: a focus ring the colour of the text,
+     * on every real install.
+     *
+     * That is R-021 inverted — not inheriting the host's accent but ignoring it —
+     * and no assertion caught it, because the test that "proved" inheritance set
+     * the variable to a space-separated triple itself. It supplied the format that
+     * made it pass.
+     *
+     * Written this way the declaration is valid for ANY colour syntax the host
+     * uses, which is the whole point of inheriting rather than defining.
+     */
+    outline-color: var(--primary-600, rgb(37 99 235));
 }
 
 .ltree-row-name {
@@ -105,7 +123,7 @@
 }
 
 .ltree-drop-target {
-    border-color: rgb(var(--primary-500, 59 130 246));
+    border-color: var(--primary-500, rgb(59 130 246));
 }
 
 .ltree-confirm {

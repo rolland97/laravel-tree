@@ -114,3 +114,66 @@ it('reports zero critical accessibility issues on the real tree page, in both sc
     visit('/admin/category-tree')->inLightMode()->assertNoAccessibilityIssues();
     visit('/admin/category-tree')->inDarkMode()->assertNoAccessibilityIssues();
 });
+
+// ── FR-030 / R-021 — the accent is INHERITED, not defined ───────────────────
+
+it('paints the focus ring in the host panel\'s OWN accent, whatever syntax it uses', function () {
+    // ⚠️ Compared against the variable's ACTUAL value, read from the same page —
+    // not against a value this test supplied.
+    //
+    // The first version of this guard set `--primary-600: 220 38 38` itself and
+    // asserted the ring became `rgb(220, 38, 38)`. It passed, and it was WRONG:
+    // Filament v5 sets the accent as `oklch(...)`, so the shipped
+    // `rgb(var(--primary-600, …))` expanded to `rgb(oklch(...))`, was discarded as
+    // invalid, and the ring silently fell back to currentColor on every real
+    // install. The test had supplied the one format that made the bug invisible.
+    $page = visit('/admin/category-tree')->assertPresent('[data-ltree-key]');
+
+    $result = $page->script(
+        '(() => { const root = getComputedStyle(document.documentElement);'
+        ." const accent = root.getPropertyValue('--primary-600').trim();"
+        ." const row = document.querySelector('[data-ltree-key]');"
+        ." row.classList.add('ltree-focused');"
+        .' const ring = getComputedStyle(row).outlineColor;'
+        .' return { accent, ring, text: getComputedStyle(row).color }; })()'
+    );
+
+    expect($result['accent'])->not->toBe('', 'the panel defines no --primary-600 to inherit');
+    expect($result['ring'])->toBe($result['accent']);
+
+    // ⚠️ And explicitly NOT the text colour. That is what an invalid declaration
+    // degrades to, and it is indistinguishable from "no rule at all".
+    expect($result['ring'])->not->toBe($result['text']);
+});
+
+it('paints the drop target in the host accent, not in currentColor', function () {
+    $page = visit('/admin/category-tree')->assertPresent('[data-ltree-key]');
+
+    $result = $page->script(
+        '(() => { const root = getComputedStyle(document.documentElement);'
+        ." const accent = root.getPropertyValue('--primary-500').trim();"
+        ." const row = document.querySelector('[data-ltree-key]');"
+        ." row.classList.add('ltree-drop-target');"
+        .' return { accent, border: getComputedStyle(row).borderTopColor,'
+        .'          text: getComputedStyle(row).color }; })()'
+    );
+
+    expect($result['accent'])->not->toBe('');
+    expect($result['border'])->toBe($result['accent']);
+    expect($result['border'])->not->toBe($result['text']);
+});
+
+it('still follows the accent when a host overrides it at runtime', function () {
+    // The other direction: a host that changes its accent must move the ring with
+    // it. Uses a full colour value, which is what a host actually sets.
+    $page = visit('/admin/category-tree')->assertPresent('[data-ltree-key]');
+
+    $ring = $page->script(
+        "(() => { document.documentElement.style.setProperty('--primary-600', 'rgb(220, 38, 38)');"
+        ." const row = document.querySelector('[data-ltree-key]');"
+        ." row.classList.add('ltree-focused');"
+        .' return getComputedStyle(row).outlineColor; })()'
+    );
+
+    expect($ring)->toBe('rgb(220, 38, 38)');
+});

@@ -597,3 +597,89 @@ page rendering perfectly and the drag doing nothing.
 never states a number — the claim is T093's. Both the note in `AGENTS.md` and T093
 itself now say so. Recorded because it is exactly the failure R-037 names: a
 quoted constraint repeated without checking the artifact it describes.
+
+---
+
+## T096 `/speckit-analyze` — four coverage gaps, and a real defect behind one
+
+### ⚠️ Finding F13 — the accent colour was NEVER inherited (FR-030 / R-021 violated)
+
+The stylesheet shipped `outline-color: rgb(var(--primary-600, 37 99 235))`.
+
+**Filament v5 defines its accent as an oklch() colour** —
+`--primary-600: oklch(0.666 0.179 58.318)` — so that expands to
+`rgb(oklch(...))`, which is **invalid CSS**. The browser discarded the whole
+declaration, the fallback never applied either, and `outline-color` fell back to
+`currentColor`. Measured on the untouched page:
+
+```
+ring  = oklch(0.141 0.005 285.823)
+text  = oklch(0.141 0.005 285.823)   ← identical
+```
+
+A focus ring the colour of the text, on **every real install**. The drop-target
+border was the same. This is R-021 inverted: not inheriting the host's accent but
+ignoring it.
+
+⚠️ **And the guard written to prove inheritance PASSED against it.** The first
+version set `--primary-600: 220 38 38` itself and asserted the ring became
+`rgb(220, 38, 38)` — supplying the one format that makes the broken expression
+valid. It proved the CSS could read a variable in a format nothing uses.
+
+**The lesson, and it is the sharpest one on this branch**: a test that *supplies*
+the input which makes the code work proves only that the code works on that input.
+The rewritten guards compare the ring against the variable's **actual value read
+from the same page**, in whatever syntax the host uses, and additionally assert it
+is **not** the text colour — because currentColor is what an invalid declaration
+degrades to, and is indistinguishable from having no rule at all.
+
+Fixed by using the variable as a whole colour — `var(--primary-600, rgb(37 99 235))`
+— which is valid for any colour syntax a host chooses.
+
+**Mutation**: restoring `rgb(var(...))` reddens all three new guards.
+
+### E2 — the migration stub is now executed
+
+Only its *publishability* had been asserted; the fixtures use migrations of their
+own. It is the first command every host runs, and a syntax error in it would have
+shipped green. Now published, its `YOUR_TABLE` placeholder rewritten, run, and
+rolled back, with the column names read from **config** so the stub and
+`config/tree.php` are proved to agree.
+
+**Mutations**: wrong column name → 2 red; `down()` that does not drop → 1 red;
+syntax error → 2 red; placeholder hard-coded → 1 red.
+
+⚠️ **One of my own guards was weak and was removed.** A textual check that the
+stub "contains `'position'`" stayed GREEN when the created column was renamed to
+`positionx`, because the stub's `index(['parent_id', 'position'])` line still
+contained the string. It read as stub-versus-config coverage and was a substring
+search. Deleted, with the reason recorded in the file.
+
+### E4 — a host override is proved to WIN
+
+FR-019 asks that host copy override the package's. The existing tests asserted
+translations *resolve* and lang files are *publishable* — neither is the
+requirement. Overrides are now proved to take effect for refusals and
+announcements, plus the inverse (the package's own wording when nothing is
+overridden, so the guard cannot pass vacuously), plus a sweep asserting no
+announcement template holds a placeholder the controller never substitutes.
+
+⚠️ That sweep failed on first run for the wrong reason: `toContain()` in Pest is
+**variadic over expected values**, so the failure message passed as a second
+argument became a second value the array had to contain. Rewritten as
+`expect(in_array(...))->toBeTrue($message)`. Verified failable by injecting a
+bogus `:lastx` placeholder.
+
+### F1 / F2 — artifact drift
+
+`plan.md` listed `Concerns/InteractsWithTree.php`, never built (its work is on
+`TreePage`; the split would have had nothing on either side of it). Removed, with
+the reason. `T096` and `T097` marked complete.
+
+### ⛔ Still open — `AssertsTree`
+
+`contracts/public-api.md` declares `Rolland\Tree\Filament\Testing\AssertsTree` as
+**public surface**. It does not exist, and **no task in T001–T100 covers it** — it
+was never scheduled. Left open deliberately: building it or retracting it from the
+contract is a design decision, and a documented public API that does not exist is
+worse than either choice made explicitly.

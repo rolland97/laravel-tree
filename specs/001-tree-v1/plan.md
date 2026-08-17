@@ -146,8 +146,7 @@ src/
 └── Filament/                        # the bridge — loaded only when Filament is present
     ├── FilamentTreeServiceProvider.php
     ├── Pages/TreePage.php           # abstract; the host extends it
-    ├── Concerns/InteractsWithTree.php
-    └── Testing/AssertsTree.php      # helpers hosts may use in their own suites
+    └── Testing/AssertsTree.php      # ⚠️ NOT BUILT — see note below
 
 config/tree.php                      # parent column, position column, tiebreaker
 database/migrations/add_tree_columns.php.stub
@@ -163,6 +162,17 @@ tests/
 ├── Browser/                         # drag, keyboard, axe
 └── Fixtures/{Category.php,Page.php} # two unrelated models — one proves nothing
 ```
+
+⚠️ **Two entries in the tree above did not survive implementation, recorded rather than
+quietly deleted:**
+
+- `Concerns/InteractsWithTree.php` was never created. Its work — the host hooks, the read
+  helpers, the committing entry points — is all on `TreePage` itself, and splitting it across a
+  trait would have added a seam with nothing on either side of it. Removed from the structure.
+- `Testing/AssertsTree.php` is **still missing**, and unlike the above it is promised in
+  `contracts/public-api.md` as **public surface**. No task in T001–T100 covers it, so it was
+  never scheduled. It must be either built or retracted from the contract; a documented public
+  API that does not exist is worse than either. Found by `/speckit-analyze` (T096).
 
 **Structure Decision**: Single package with a conditionally-registered bridge, per
 `the consumer's package-documentation rule` rule 2 in the consumer's repository. Not split into two repositories:
