@@ -70,6 +70,28 @@ function waitForExpanded(object $page, int|string $key, string $state): void
     );
 }
 
+/**
+ * Wait for the CHILDREN to actually appear or disappear.
+ *
+ * ⚠️ Not the same signal as `aria-expanded`, and the difference cost a red CI run.
+ * `x-bind:aria-expanded` sits on the ROW and `x-show` on the children container
+ * further down the document, so they are two separate Alpine effects: waiting for the
+ * attribute and then asserting the display races, and the race only lost on CI's
+ * slower machine. The display is also the assertion worth making — it is what the
+ * actor sees.
+ */
+function waitForBranchDisplay(object $page, int|string $key, bool $hidden): void
+{
+    $wanted = $hidden ? '===' : '!==';
+
+    $page->script(
+        '(async () => { for (let i = 0; i < 80; i++) {'
+        ." const c = document.querySelector('[data-ltree-children-of=\"{$key}\"]');"
+        ." if (c && getComputedStyle(c).display {$wanted} 'none') return true;"
+        .' await new Promise(r => setTimeout(r, 25)); } return false; })()'
+    );
+}
+
 /** Press a key on the focused row and give the controller a moment to react. */
 function pressKeyOnFocused(object $page, string $key): void
 {
@@ -105,7 +127,7 @@ it('opens a closed branch when the chevron is clicked', function () {
     $page = bootedTree(visit('/admin/collapsed-tree'));
 
     $page->click('[data-ltree-key="'.$this->delta->id.'"] [data-ltree-chevron]');
-    waitForExpanded($page, $this->delta->id, 'true');
+    waitForBranchDisplay($page, $this->delta->id, hidden: false);
 
     expect(branchExpanded($page, $this->delta->id))->toBe('true');
     expect(branchDisplay($page, $this->delta->id))->not->toBe('none');
@@ -137,10 +159,10 @@ it('closes an opened branch again, which an explicit false must not break', func
     $page = bootedTree(visit('/admin/collapsed-tree'));
 
     $page->click('[data-ltree-key="'.$this->delta->id.'"] [data-ltree-chevron]');
-    waitForExpanded($page, $this->delta->id, 'true');
+    waitForBranchDisplay($page, $this->delta->id, hidden: false);
 
     $page->click('[data-ltree-key="'.$this->delta->id.'"] [data-ltree-chevron]');
-    waitForExpanded($page, $this->delta->id, 'false');
+    waitForBranchDisplay($page, $this->delta->id, hidden: true);
 
     expect(branchExpanded($page, $this->delta->id))->toBe('false');
 });
@@ -149,6 +171,7 @@ it('still starts a default host open', function () {
     // ⚠️ REGRESSION guard, in the browser: "Migration: none" has to hold where the
     // controller runs, not only in the served html.
     $page = bootedTree(visit('/admin/category-tree'));
+    waitForBranchDisplay($page, $this->delta->id, hidden: false);
 
     expect(branchExpanded($page, $this->delta->id))->toBe('true');
     expect(branchDisplay($page, $this->delta->id))->not->toBe('none');
