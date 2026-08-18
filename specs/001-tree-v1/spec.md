@@ -13,7 +13,7 @@
 This package is an **extraction**, not a greenfield design. Every behaviour below already
 runs in production in the consumer application, where it was paid for across four merged
 slices (020, 021, 029, 071). The design record, source inventory, seams and traps live in
-that repository at `the consumer's package notes`.
+that repository, in its own package notes.
 
 Two consequences shape this specification:
 

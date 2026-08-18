@@ -54,7 +54,7 @@ outcomes of the consumer's keyboard-order slice, which paid for them with
 two live ordering defects and an accessible-name defect that four correct aria-*
 assertions failed to catch. They are constitutional precisely so a later
 convenience API cannot quietly re-introduce what they forbid. Evidence:
-the consumer's keyboard-order slice/checklists/validation-log.md in that repo, and
+the consumer's keyboard-order slice validation log in that repo, and
 the consumer's package notes § Traps already paid for.
 ================================================================================
 -->

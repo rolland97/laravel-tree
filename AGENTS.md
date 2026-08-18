@@ -99,7 +99,7 @@ Each rule is tagged:
   > unlabelled row that announced its short code, its vendor count, all six action labels and its
   > whole subtree — while **four correct `aria-*` assertions passed**. Automated checks cannot see
   > this, because a name does exist. *Inherited: the consumer's package notes
-  > § Traps already paid for; `the consumer's keyboard-order slice/checklists/validation-log.md`.*
+  > § Traps already paid for; the consumer's keyboard-order slice validation log.*
 
 - **R-015** — Position and set size MUST count the **rendered** siblings, never the true group
   size. This is a **privacy** requirement before it is a convention: the true size discloses that
