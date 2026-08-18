@@ -333,10 +333,26 @@ code at all). Parallelising the stories destroys the proof.
       **OPEN**, because deferring a proof is not obtaining one: SC-011 remains **UNPROVED**
       and must not be reported otherwise. What changed is only that it no longer blocks a
       release — it is scheduled work, not an omission.
-- [ ] T100 [POLISH] ⚠️ **Do NOT tag.** The release gate is the consumer application adopting
-      this package through a path repository with its suite green — including its existing audit
-      tests **unchanged**, which is the strongest signal the event seam held. Tagging is
-      irreversible (`AGENTS.md` R-035).
+- [X] T100 [POLISH] ✅ **DONE 2026-08-18 — released at `v0.9.0`, repository public.** The gate
+      was met in the order it required: the consumer application adopted this package, its full
+      suite passed **in CI on a clean checkout** (MR !121, pipeline 586 green on all three jobs),
+      and its existing audit tests passed **unchanged** — the strongest signal the event seam held.
+      Only then was the tag cut (`AGENTS.md` R-035).
+
+      ⚠️ **0.9.0, not 1.0.0, deliberately.** That single adoption cost **seventeen** public-API
+      amendments (PA-1…PA-17), two of them on the final day, and the consumer's next slice will use
+      the tree a different way again. 0.x keeps the freedom to keep amending without a major bump
+      each time; 1.0.0 follows when the surface stops moving.
+
+      ⚠️ **R-036 verified rather than assumed**: `git archive v0.9.0 | tar -t` ships only
+      `LICENSE`, `README.md`, `composer.json`, `config/`, `database/`, `lang/`, `resources/` and
+      `src/` — no specs, tests, agent configuration or build sources.
+
+      ⚠️ **Publishing needed more than archive hygiene.** The git history and the commit messages
+      named the consumer 152 times, and force-pushed objects survive on GitHub — measured, by
+      fetching one back after a force-push. The repository was **deleted and recreated**, then
+      verified with an anonymous clone. Archive hygiene and disclosure hygiene are different
+      problems, and R-036 only covers the first.
 
 ---
 

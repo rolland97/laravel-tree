@@ -184,10 +184,20 @@ imported, not that the package boots.
 
 ## Release gate
 
+✅ **PASSED 2026-08-18 — `v0.9.0` tagged, repository public.** The gate is kept below as written,
+because it is the procedure for the *next* release, not a record of this one.
+
 ⚠️ **Do not tag until the consumer application has adopted this package through a local path
 repository and its suite is green — including its existing audit tests, unchanged.** A published
 version cannot be retracted, and an API frozen without a consumer is frozen against guesses. The
 repository stays private until then (`AGENTS.md` R-035, R-036).
+
+⚠️ **What this gate does NOT cover, learned the hard way.** It checks the distribution *archive*.
+It says nothing about the git **history**, the commit **messages**, or objects left behind by a
+**force-push** — and going public exposed all three. The history named the consumer 152 times, and
+a force-pushed object was still fetchable afterwards (measured, not assumed), so the repository had
+to be deleted and recreated rather than switched to public. **Before the next release that changes
+visibility, check the tree, the history, the messages and the orphans — four things, not one.**
 
 Before the first tag, confirm the distribution archive carries runtime only:
 
