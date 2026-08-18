@@ -212,6 +212,18 @@ Each rule is tagged:
   *Source: constitution Principle VI; the consumer's package notes, D5.*
   **[ratified]**
 
+⚠️ **R-035 and R-036 were both SATISFIED on 2026-08-18, and the rules stand as written.** The
+consumer was built against this package unpublished, its suite went green in CI, and only then was
+`v0.9.0` tagged and the repository made public — the order R-035 requires. R-036 was verified
+rather than assumed: `git archive v0.9.0 | tar -t` ships only `LICENSE`, `README.md`,
+`composer.json`, `config/`, `database/`, `lang/`, `resources/` and `src/`.
+
+⚠️ **One thing R-036 does not say, and should be read alongside it.** Going public needed the git
+**history** and the commit **messages** scrubbed too, not just the working tree — and force-pushed
+objects survive on GitHub, measured by fetching one back after a force-push. The repository was
+deleted and recreated, then checked with an anonymous clone. Archive hygiene and disclosure hygiene
+are different problems.
+
 ## Working agreements
 
 - **R-037** — **A quoted constraint is a claim.** Where any document asserts something is

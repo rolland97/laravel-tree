@@ -13,12 +13,13 @@ backlog index.
 
 ## ⚠️ Read this before the first action
 
-**The working branch is `001-tree-v1`, not `main`.** `main` holds only the scaffold commit and
-constitution **1.0.0**; `AGENTS.md` and constitution **1.0.1** are on the branch. A session that
-lands on `main` will not see the rules it is supposed to be gated by.
+**`main` is the branch now, and it carries everything.** ⚠️ This paragraph used to say the
+opposite — that `main` held only the scaffold and that a session landing there would not see the
+rules it was gated by. That was true until **2026-08-18**, when `001-tree-v1` fast-forwarded into
+`main` for the `v0.9.0` release. The two refs are the same commit; either is safe to work from.
 
 ```bash
-git switch 001-tree-v1
+git switch main        # or 001-tree-v1 — identical, and `main` is where releases are cut
 ```
 
 Read in this order:
@@ -38,7 +39,7 @@ Read in this order:
 stories are implemented. Run the checks before trusting any of that:
 
 ```bash
-composer test        # 203 passing across core, bridge and browser
+composer test        # 332 passing across core, bridge and browser
 composer analyse     # PHPStan level 8 over src and config
 composer test:lint   # Pint
 ```
@@ -50,7 +51,7 @@ or every browser test errors rather than fails.
 writes the committed `resources/dist/`. A stale committed bundle ships broken code that every
 local check reports as green.
 
-**What is left**: `T096` (`/speckit-analyze`), `T099` and `T100` — see below. Everything else is
+**What is left**: only `T099` — see below. `T096` and `T100` are done. Everything else is
 marked `[X]` in `tasks.md`, and every `Watch … fail` gate is recorded in
 `specs/001-tree-v1/checklists/validation-log.md`, including **ten findings** where a guard could
 not be made to fail and had to be investigated.
@@ -80,16 +81,30 @@ Each is stated in full where it belongs; these are the pointers.
    it — `T040` exists to keep that distinction enforced rather than commented.
    *→ constitution Principle II; `contracts/public-api.md`.*
 
-## Two things that are not yours to close
+## One thing that is not yours to close — and one that is now done
 
 - **`T099` — the SC-011 screen-reader walk.** Needs a real screen reader and **working audio**.
   If the machine does not have both, leave the task open and report SC-011 **unproved**.
+
+  ⚠️ **DEFERRED to the next release by owner decision, 2026-08-18** — in this package and in the
+  consumer application alike. It no longer blocks a release, and it is **still open and still
+  unproved**: deferring a proof is not obtaining one. Do not report it as passed, and do not close
+  it because `v0.9.0` shipped without it.
   ⚠️ **An accessibility-tree dump and an axe pass are evidence for SC-008, and explicitly not for
   this.** Axe proves a name *exists*; the source application shipped four *correct* ARIA
   assertions while the announced name was wrong.
-- **`T100` — the tag.** Do not tag, publish, or make the repository public. The gate is the
-  consumer application adopting this package through a local path repository with its suite
-  green, including its existing audit tests **unchanged**. Publishing is irreversible.
+- **`T100` — the tag. ✅ DONE 2026-08-18: released at `v0.9.0`, repository public.** The gate was
+  met in the documented order — the consumer adopted this package, its full suite passed in CI on
+  a clean checkout, and its existing audit tests passed **unchanged** — and only then was the tag
+  cut. ⚠️ **0.9.0 and not 1.0.0 on purpose**: that one adoption cost **seventeen** public-API
+  amendments (PA-1…PA-17), two on the final day, so 0.x keeps the freedom to keep amending without
+  a major bump each time. 1.0.0 follows when the surface stops moving.
+
+  ⚠️ **Publishing needed more than the working tree.** History and commit messages named the
+  consumer 152 times, and force-pushed objects survive on GitHub — measured, by fetching one back
+  after a force-push. The repository had to be **deleted and recreated**, then verified with an
+  anonymous clone. If anything is ever scrubbed here again, check the tree, the history, the
+  messages **and** the orphans.
 
 ## Conventions
 
