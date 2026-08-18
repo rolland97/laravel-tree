@@ -71,6 +71,16 @@ function ltree(strings = {}, startCollapsed = false) {
         focusWasOnRow: null,
 
         /**
+         * The node key of the confirmation on screen when our morph began, if any.
+         *
+         * ⚠️ A SECOND field rather than a flag on `focusWasOnRow`, because the two
+         * restore to different places: a row restores to itself, and an answered
+         * confirmation restores to the row its move was about — the confirmation is
+         * gone by the time the morph finishes (F39).
+         */
+        confirmWasShowing: null,
+
+        /**
          * The keyboard hold. ⚠️ ALL of this is client state, and NONE of it reaches
          * the server until the drop (T087). A call per arrow press would write one
          * audit row per keystroke for what the user thinks of as one move.
@@ -140,6 +150,23 @@ function ltree(strings = {}, startCollapsed = false) {
                     && focused.matches('[data-ltree-key]')
                     ? focused.dataset.ltreeKey
                     : null
+
+                // ⚠️ The confirmation is recorded by its PRESENCE, not by its focus.
+                //
+                // Measured: pressing an answer fires `focusout` from the dialog to
+                // the button, then from the button to NOTHING — Livewire disables the
+                // button it is submitting, and a disabled element cannot hold focus.
+                // By the time this hook runs `document.activeElement` is already
+                // `<body>`, so a focus-based test here sees nothing at all (F39).
+                //
+                // ⚠️ Nor on the buttons' own click, which was the first fix and was
+                // WRONG: it works only once Alpine has bound the handler, and a click
+                // that lands before that silently skips it. A human cannot click that
+                // fast and a test can, which is the kind of race that reads as a flake
+                // for weeks.
+                this.confirmWasShowing = this.$el
+                    .querySelector('[data-ltree-confirm]')
+                    ?.dataset.ltreeConfirmNode ?? null
             })
 
             window.Livewire.hook('morphed', ({ component }) => {
@@ -168,7 +195,21 @@ function ltree(strings = {}, startCollapsed = false) {
          * seconds.
          */
         restoreFocusAfterMorph() {
-            const key = this.focusWasOnRow
+            const wasShowing = this.confirmWasShowing
+            this.confirmWasShowing = null
+
+            // ⚠️ A confirmation that was on screen and is now GONE has been answered,
+            // and it took the focused element with it. Falling through would drop the
+            // actor at `<body>` — the same defect PA-14 fixed for rows, arriving by a
+            // different door (F39).
+            //
+            // ⚠️ Conditioned on the dialog having DISAPPEARED, not merely on it having
+            // been there. A morph that leaves the confirmation standing — a host's
+            // poll, a notification — must not yank focus out of it.
+            const answered = wasShowing !== null
+                && this.$el.querySelector('[data-ltree-confirm]') === null
+
+            const key = answered ? wasShowing : this.focusWasOnRow
             this.focusWasOnRow = null
 
             if (key === null) {

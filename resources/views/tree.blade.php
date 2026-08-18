@@ -92,15 +92,31 @@
                 role="alertdialog" + aria-modal carry the same meaning to assistive
                 technology, and the region is plain DOM that is either there or not.
             --}}
+            {{--
+                ⚠️ `tabindex="-1"` + `x-init` because an alertdialog that never
+                receives focus is announced only by the assistive technology that
+                volunteers it, and reached by a keyboard actor only by tabbing
+                forward blind. Measured in a real consumer panel: the confirmation
+                opened and `document.activeElement` was still the drag handle of the
+                row just dragged (the consumer's adoption T057, finding F39).
+
+                Focusing the region rather than the submit button: the heading is
+                what the actor needs read to them, and pre-focusing "Move it" would
+                put the destructive answer under the next Enter press.
+            --}}
             <div
                 class="ltree-confirm"
                 role="alertdialog"
                 aria-modal="true"
                 aria-labelledby="ltree-confirm-heading"
+                tabindex="-1"
+                x-init="$nextTick(() => $el.focus())"
                 data-ltree-confirm
+                data-ltree-confirm-node="{{ $pendingMove['nodeKey'] }}"
             >
                 <h2 id="ltree-confirm-heading" class="ltree-confirm-heading">
-                    {{ __('tree::tree.confirm.heading') }}
+                    {{-- PA-6: the host may name its own question; otherwise ours. --}}
+                    {{ $pendingMove['heading'] ?? __('tree::tree.confirm.heading') }}
                 </h2>
 
                 <p class="ltree-confirm-message">{{ $pendingMove['message'] }}</p>

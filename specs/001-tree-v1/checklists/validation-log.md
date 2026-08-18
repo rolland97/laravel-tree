@@ -1701,3 +1701,150 @@ IS on screen before the refusal, so a preview that never happened fails the firs
 assertion and one that never reverted fails the last.
 
 Suite after: **319 passed**, PHPStan level 8 clean, Pint clean.
+
+## ⚠️ Findings F38 / F39 — the consumer's LIVE dark walk, which no automated case could see
+
+Both found on 2026-08-18 by the consumer's adoption T057, driving the real Office panel in a real
+browser. Neither is reachable from this package's own suite, and that is the point: F38 is
+invisible to a headless run that never sets a host's theme, and F39 is invisible to any
+assertion that reads the DOM rather than watching where focus went.
+
+### ⚠️ Finding F38 — dark mode is keyed to the OS, and Filament's is keyed to a class
+
+`resources/css/tree.css` carries exactly ONE dark mechanism, at line 185:
+
+```css
+@media (prefers-color-scheme: dark) { … }
+```
+
+Filament does not use the OS preference. It stamps a **class** on the root element
+(`<html class="fi dark">`) when the actor picks a theme, which is a choice the media query
+cannot see. The two disagree on every machine whose OS scheme differs from the theme the
+actor chose.
+
+**Measured in the consumer's panel**, OS light + Filament dark, on `.ltree-row`:
+
+| property | computed |
+|---|---|
+| `background-color` | `rgb(255, 255, 255)` — the package's LIGHT rule, still winning |
+| `color` | `rgb(255, 255, 255)` — inherited from Filament's dark theme |
+
+White text on a white row: **contrast 1:1, the category name is not rendered to a sighted
+actor at all.** The badges and the action icons still show, so the row reads as a blank
+white bar with controls floating in it — it does not read as "broken CSS", which is what
+makes it dangerous.
+
+⚠️ **Both directions are wrong, not one.** OS dark + Filament light gives the inverse — the
+package's dark rules paint a dark row onto a light page. Only the two matching combinations
+are correct, and they are correct by coincidence.
+
+⚠️ **The host cannot fix this for us, and did not.** The consumer ships two Filament themes
+and neither mentions `ltree`; the package registers its own compiled stylesheet as a
+Filament asset, so its dark handling is nobody's business but ours.
+
+⚠️ **Why every green check missed it.** The package's browser suite never sets a host theme,
+so it always runs in the one combination that works. The consumer's SC-005 covers dark with
+a no-JS-errors case — and there are no JS errors; the page is silently unreadable. An axe
+pass would have caught this one, which is the mirror image of PA-10, where axe was green for
+months over a broken tree. Neither tool is the evidence; the walk is.
+
+**Fix**: the dark block must also answer to the class Filament sets, not the OS alone.
+
+### ⚠️ Finding F39 — the confirmation is an `alertdialog` that takes no focus and says nothing
+
+`tree.blade.php` renders the pending-move confirmation as `role="alertdialog"` with a proper
+`aria-labelledby`. Nothing in `tree.js` moves focus into it. Measured at the moment the
+confirmation appeared after a drag:
+
+- `document.activeElement` was still `span.ltree-handle` — the drag handle of the row that
+  had just been dragged, outside the dialog;
+- the live region still held the PREVIOUS announcement (`"IT put down at 2 of 2."`), so the
+  confirmation contributed no announcement of its own.
+
+A keyboard actor must tab forward, blind, to reach **Move it**; a screen-reader actor is told
+a move is pending only if their AT happens to announce an `alertdialog` that never received
+focus, which is exactly the support that varies.
+
+⚠️ **This widens the T099 / SC-007 debt rather than settling it** — like PA-4, PA-12, PA-15
+and PA-16, it is a claim about what a real screen reader says, and it stays UNPROVED until
+one is driven with working audio.
+
+## PA-17 / PA-6 / F39 — fixed the same day, and one guard that was watched red twice
+
+All three landed together because they are one screen: the confirmation the consumer's walk
+was judging is also the surface F38 made unreadable.
+
+### PA-17 — the reds, and what they cost
+
+Four new guards in `StylingTest.php`, all watched failing against the unchanged stylesheet:
+
+| guard | red before |
+|---|---|
+| follows the theme CLASS into dark on a light OS | got `rgb(255, 255, 255)` |
+| follows the class back to LIGHT on a dark OS | got `rgb(39, 39, 42)` |
+| never paints a row the same colour as its text | `bg` and `text` both `rgb(255, 255, 255)` |
+| re-colours the confirmation for the class | got `rgb(255, 255, 255)` |
+
+⚠️ **The harm is asserted directly by one of them.** The others name a palette value, and a
+palette change could satisfy all three while reintroducing the collision; `bg !== text` cannot
+be satisfied by a row nobody can read.
+
+⚠️ **The eleven guards already in that file still pass**, which is the point: `inDarkMode()`
+emulates the OS, Filament's script follows the OS, and so the class and the media query moved
+together in every case the suite had ever run. The old dark guards were not wrong — they were
+blind to the only combination that breaks, and no amount of running them would have said so.
+
+⚠️ **The stylesheet's own comment predicted this failure and mis-filed the cause.** It said the
+confirmation "MUST be re-coloured here… inside a dark panel is white-on-white", and then keyed
+that re-colouring to the OS. The symptom was understood before it shipped; the signal was not.
+
+### F39 — two fixes that looked right and were races
+
+The guard `it leaves focus somewhere useful after the confirmation is answered` failed **three
+times**, and only the third implementation is deterministic. Both dead ends are recorded in
+`contracts/public-api.md` because both are the obvious thing to write:
+
+1. **Read `document.activeElement` in the pre-morph hook.** Traced: answering fires `focusout`
+   from the dialog to the button, then from the button to `null` — Livewire disables the button
+   it is submitting and a disabled element cannot hold focus. The hook then sees `<body>`.
+2. **Record it on the buttons' click.** Traced green once and red once *with no code change
+   between the runs*: it depends on Alpine having bound `x-on:click` before the click lands.
+   ⚠️ **That is the most dangerous shape in this log** — a fix whose test passes often enough to
+   be believed. It was caught only because the run before it had failed and nothing had changed.
+3. **Record the dialog's PRESENCE before the morph; restore only if it is gone after.** No
+   dependency on focus, on click timing, or on Alpine's binding order. Ten runs of `DragTest`
+   green, three of them consecutive and deliberate.
+
+⚠️ **Conditioned on disappearance, not on presence.** Restoring whenever a confirmation *had*
+been there would yank focus out of a standing confirmation on any unrelated morph — a host
+polling a notification bell, which is the same failure PA-14's note warns about.
+
+### PA-6 — and the contract sentence it falsified
+
+`contracts/public-api.md` claimed the trait-aliasing pattern "is why PA-6 was not needed". That
+sentence has been corrected rather than deleted. Aliasing lets a host carry structured data
+alongside the confirmation; it cannot put any of it in the **heading**, because the heading was
+never a slot. The consumer did exactly what the contract suggested and still could not ask its
+own question — which is a documented workaround hiding a missing seam, the same shape as F28.
+
+⚠️ **A guard asserts the ABSENCE of the package heading** once a host supplies its own, not just
+the presence of the host's. The defect was never a missing host string — the consumer's words
+were on screen the whole time, under a second heading. A guard that only asserted the host's
+text would have passed against the broken markup.
+
+### Suite after
+
+**332 passed** (from 319: +4 styling, +2 focus, +5 PA-6, +2 pre-existing counted per new
+fixture page), PHPStan level 8 clean, Pint clean.
+
+⚠️ PHPStan caught the amendment's one real omission: `unset($pending['heading'])` on an array
+shape that did not declare `heading`. Level 8 reading an optional key is the reason the shape is
+documented at all.
+
+⚠️ **One cross-file failure seen once and NOT yet explained.** Running `tests/Bridge/ConfirmHeadingTest.php`
+and `tests/Browser/DragTest.php` in one invocation failed `it keeps siblings the search hid in
+their relative order after a drag` on `assertDontSee('Aardvark')`; `DragTest` alone passed ten
+times, and the full suite passed. It has F37's shape — a browser test's requests are served in
+this process — but `$hideBravo` is set by both files' `beforeEach`, so that particular static is
+not the culprit. **Recorded rather than dismissed**, which is what F37 taught: the same symptom
+was called a flake for a day before it turned out to be leaked state.

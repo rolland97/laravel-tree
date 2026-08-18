@@ -56,7 +56,11 @@ trait InteractsWithTree
      * A move the host asked to confirm. The RAW payload is kept, never a resolved
      * one — see confirmPendingMove().
      *
-     * @var array{nodeKey: int|string, destinationParentKey: int|string|null, referenceKey: int|string|null, placement: string, renderedSiblingIds: array<int, int|string>, message: string}|null
+     * ⚠️ `heading` is OPTIONAL — only a host that returned the array form of
+     * `confirmationFor()` supplies one, and the blade falls back to this package's
+     * generic heading when it is absent (PA-6).
+     *
+     * @var array{nodeKey: int|string, destinationParentKey: int|string|null, referenceKey: int|string|null, placement: string, renderedSiblingIds: array<int, int|string>, message: string, heading?: string}|null
      */
     public ?array $pendingMove = null;
 
@@ -227,8 +231,19 @@ trait InteractsWithTree
 
     /**
      * Return a warning to require confirmation; `null` applies the move immediately.
+     *
+     * A plain string is the body, shown under this package's generic heading. To
+     * name the question itself, return `['heading' => …, 'message' => …]` — PA-6.
+     *
+     * ⚠️ The array form exists because the string form made a host compose its
+     * title, its body and its affected-counts line into ONE paragraph, which then
+     * rendered under the generic heading: two headings, the generic one winning the
+     * visual hierarchy, and the actor's real question demoted to the first sentence
+     * of the body (the consumer's adoption T058).
+     *
+     * @return string|array{heading?: string, message: string}|null
      */
-    protected function confirmationFor(Model $node, ?TreeNode $newParent): ?string
+    protected function confirmationFor(Model $node, ?TreeNode $newParent): string|array|null
     {
         return null;
     }
@@ -586,8 +601,14 @@ trait InteractsWithTree
         $confirmation = $this->confirmationFor($node, $parent);
 
         if ($confirmation !== null) {
+            // ⚠️ Normalised HERE, so the blade reads one shape and every host —
+            // string or array — reaches it the same way (PA-6).
+            $confirmation = is_string($confirmation)
+                ? ['message' => $confirmation]
+                : $confirmation;
+
             // Nothing is written. The raw payload is held, not the resolved move.
-            $this->pendingMove = [...$payload, 'message' => $confirmation];
+            $this->pendingMove = [...$payload, ...$confirmation];
 
             return;
         }
@@ -605,7 +626,9 @@ trait InteractsWithTree
             return;
         }
 
-        unset($pending['message']);
+        // ⚠️ `heading` rides alongside `message` since PA-6, and neither is part of
+        // the move. Both must come off before the payload reaches the resolver.
+        unset($pending['message'], $pending['heading']);
 
         // ⚠️ Re-authorized and re-resolved FROM SCRATCH on this call, against a
         // freshly-run visibleQuery. The check made when the move was queued is not

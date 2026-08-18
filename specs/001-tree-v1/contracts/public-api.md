@@ -277,7 +277,7 @@ implements or overrides:
 | `rowActions(Model $node): array` | no | Row actions |
 | `headerActions(): array` | no | Page-level actions |
 | `leafSlot(Model $node): ?View` | no | Non-node rows beneath a node |
-| `confirmationFor(Model $node, ?TreeNode $newParent): ?string` | no | Return a warning to require confirmation; `null` applies immediately |
+| `confirmationFor(Model $node, ?TreeNode $newParent): string\|array\|null` | no | Return a warning to require confirmation; `null` applies immediately. ⚠️ A string is the body under this package's heading; `['heading' => …, 'message' => …]` names the question itself (PA-6) |
 | `authorizeTreeMove(Model $node, ?TreeNode $newParent): bool` | no | ⚠️ The host's **permission** rule. Defaults to `true` |
 | `matchesSearch(Model $node, string $term): bool` | no | Which columns a quick search looks in. Defaults to the tie-breaker |
 | `treeEmptyMessage(): string` | no | Which empty-state sentence to show. Chooses on whether a search is active |
@@ -314,10 +314,18 @@ use InteractsWithTree {
 }
 ```
 
-⚠️ **That pattern is why PA-6 was not needed**, and it works only because PA-1 made the tree a
-trait — a base class cannot be aliased. It was proved end to end in the consumer before being
-relied on. Promoting the order to the contract is the same fix PA-5 made for `matchesSearch()`:
-a host depending on an undocumented internal is a host a patch release can break.
+⚠️ This works only because PA-1 made the tree a trait — a base class cannot be aliased. It was
+proved end to end in the consumer before being relied on. Promoting the order to the contract is
+the same fix PA-5 made for `matchesSearch()`: a host depending on an undocumented internal is a
+host a patch release can break.
+
+⚠️ **This paragraph used to end "that pattern is why PA-6 was not needed", and that was wrong.**
+The aliasing pattern lets a host carry structured data ALONGSIDE the confirmation; it does not
+let the host put any of it in the heading, because the heading was not a slot. What the consumer
+actually shipped was a title, a body and an affected-counts line composed into the one string the
+message slot accepted — and the live walk showed the result rendering under the package's generic
+heading, with the actor's real question demoted to the body's first sentence. PA-6 was raised from
+that screen (the consumer's adoption T058); see below.
 
 #### `authorizeTreeMove()` — ⚠️ AMENDMENT (during implementation, 001-tree-v1), **security**
 
@@ -838,3 +846,88 @@ write its own overrides against it.
 
 Merge, bulk-assign, edit, retire/restore, record listings, unfiled-record panels, nested-set or
 materialized-path storage, cross-tree drag, multi-select moves, and undo. See spec § Out of Scope.
+
+#### `confirmationFor()` may name its own question — ⚠️ AMENDMENT (during implementation, 001-tree-v1), **PA-6**
+
+```php
+protected function confirmationFor(Model $node, ?TreeNode $newParent): string|array|null;
+```
+
+**What was wrong.** The slot accepted one string, and that string was the BODY. The heading was
+always `tree::tree.confirm.heading` — *"Confirm this move"* — so a host with a real question to
+ask had nowhere to ask it. The first consumer composed its title, its body and its
+affected-counts line into the single string, and the rendered confirmation carried two headings:
+the package's generic one in the heading slot, and *"Make this branch private?"* buried as the
+first sentence of the paragraph. The generic one won the visual hierarchy (the consumer's adoption T058).
+
+A host may now return either shape:
+
+| returned | heading | body |
+|---|---|---|
+| `null` | — | the move applies immediately, unchanged |
+| `'…'` | `tree::tree.confirm.heading` | the string, unchanged |
+| `['heading' => …, 'message' => …]` | the host's | the host's |
+
+⚠️ **The string form is not deprecated and its rendering is byte-identical.** It is the whole
+installed base; a guard pins it (`ConfirmHeadingTest`), and the array form is normalised into the
+same `$pendingMove` shape at the one point that already built it.
+
+⚠️ **`heading` is stripped before the payload is committed**, exactly as `message` already was.
+Both describe the question, not the move, and the resolver must never see either.
+
+**Migration**: none. An override that still declares `?string` is a narrower return type than the
+parent's `string|array|null`, which PHP allows.
+
+#### The confirmation takes focus — ⚠️ AMENDMENT (during implementation, 001-tree-v1), **accessibility, F39**
+
+**What was wrong.** The confirmation was already `role="alertdialog" aria-modal="true"` with a
+correct `aria-labelledby`, and nothing ever moved focus into it. Measured in a real consumer
+panel: the confirmation appeared and `document.activeElement` was still the drag handle of the
+row just dragged, while the live region held the PREVIOUS announcement. A keyboard actor tabbed
+forward blind to reach the answer; a screen-reader actor was told only whatever their AT
+volunteers for an alertdialog that never received focus.
+
+The region now carries `tabindex="-1"` and takes focus when it appears, and focus returns to the
+row the move concerned once the confirmation is answered.
+
+⚠️ **The REGION takes focus, not the submit button.** The heading is what has to be read, and
+pre-focusing *"Move it"* would put the destructive answer under the actor's next Enter.
+
+⚠️ **An answered confirmation is detected by its DISAPPEARANCE, not by focus and not by a click.**
+Two earlier attempts were wrong in ways worth recording, because both look correct:
+
+- *Reading `document.activeElement` in the pre-morph hook.* Livewire **disables the button it is
+  submitting**, and a disabled element cannot hold focus — so focus has already fallen to
+  `<body>` before any morph hook runs, and the dialog looks like it was never involved.
+- *Recording it on the buttons' own click.* That works only once Alpine has bound the handler. A
+  click landing before that silently skips it — a human cannot click that fast and a test can,
+  which is the kind of race that reads as a flake for weeks.
+
+The hook now records the dialog's key from its PRESENCE before the morph, and restores focus only
+if the dialog is gone afterwards — so a morph that leaves the confirmation standing (a host's
+poll, a notification) cannot yank focus out of it.
+
+**Migration**: none.
+
+#### Dark mode follows the panel's class — ⚠️ AMENDMENT (during implementation, 001-tree-v1), **PA-17**
+
+**What was wrong.** `resources/css/tree.css` carried its dark styling behind
+`@media (prefers-color-scheme: dark)`. Filament does not paint from the OS preference: its theme
+script resolves the actor's choice — or the OS, when the actor has expressed none — and stamps
+`<html class="dark">`. The two agree only while nobody has used the theme switcher.
+
+Measured in a real consumer panel, OS light and the dark theme chosen: `.ltree-row` kept its
+light rule's `background-color: rgb(255, 255, 255)` while inheriting Filament's dark
+`color: rgb(255, 255, 255)` — **contrast 1:1, with the row's name not rendered at all** (finding
+F38). The inverse, a dark machine with the light theme, painted dark rows onto a light page.
+
+The dark rules are now `.dark`-scoped and the media query is gone.
+
+⚠️ **Why the existing dark guards could not fail.** `inDarkMode()` emulates the OS preference, and
+Filament's own script then follows it — so the harness set the media query and the class together
+and the two mechanisms could never disagree. The guards that replace them drive the class
+directly, and one of them asserts the HARM (`background-color` ≠ `color`) rather than a palette
+value, so a future palette change cannot reintroduce the collision silently.
+
+**Migration**: a host that deliberately relied on the tree following the OS while its panel did
+not — no known host does — loses that. Everything else moves from broken to correct.

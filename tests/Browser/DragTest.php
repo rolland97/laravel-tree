@@ -208,3 +208,44 @@ it('keeps siblings the search hid in their relative order after a drag', functio
     expect(Stored::positions($this->delta->id))->toBe([0, 1, 2]);
     expect(Stored::order($this->delta->id))->toContain($hidden->id);
 });
+
+// ── F39 — the confirmation is an alertdialog, so focus must ENTER it ─────────
+
+it('moves focus into the confirmation when it appears', function () {
+    // ⚠️ Measured in a real consumer panel first: the confirmation opened as
+    // `role="alertdialog" aria-modal="true"`, and `document.activeElement` was
+    // still the drag handle of the row that had just been dragged. A keyboard
+    // actor had to tab forward blind to reach "Move it", and a screen-reader actor
+    // was told nothing — the live region still held the PREVIOUS announcement
+    // (the consumer's adoption T057).
+    //
+    // ⚠️ An `alertdialog` that never receives focus is announced only by the AT
+    // that happens to volunteer it, which is exactly the support that varies. The
+    // markup was already correct; nothing moved focus to it.
+    $page = visit('/admin/category-tree')
+        ->assertPresent(ltreeRow($this->delta->id))
+        ->drag(ltreeHandle($this->alpha->id), ltreeRow($this->delta->id))
+        ->assertPresent('[data-ltree-confirm]');
+
+    $inside = $page->script(
+        "(() => { const dialog = document.querySelector('[data-ltree-confirm]');"
+        .' return dialog.contains(document.activeElement); })()'
+    );
+
+    expect($inside)->toBeTrue();
+});
+
+it('leaves focus somewhere useful after the confirmation is answered', function () {
+    // ⚠️ The other half, and the one that is easy to lose: taking focus into a
+    // region that is about to be removed must not drop the actor at `<body>`.
+    $page = visit('/admin/category-tree')
+        ->assertPresent(ltreeRow($this->delta->id))
+        ->drag(ltreeHandle($this->alpha->id), ltreeRow($this->delta->id))
+        ->assertPresent('[data-ltree-confirm]')
+        ->click('[data-ltree-confirm-cancel]')
+        ->assertMissing('[data-ltree-confirm]');
+
+    $landed = $page->script('document.activeElement === document.body');
+
+    expect($landed)->toBeFalse();
+});

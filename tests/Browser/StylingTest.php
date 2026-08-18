@@ -177,3 +177,79 @@ it('still follows the accent when a host overrides it at runtime', function () {
 
     expect($ring)->toBe('rgb(220, 38, 38)');
 });
+
+// ── PA-17 / F38 — the theme is a CLASS, and the OS preference is not it ──────
+
+/*
+ * ⚠️ Why the four guards above could not fail.
+ *
+ * `inDarkMode()` emulates the OPERATING SYSTEM preference, and Filament's own
+ * theme script follows that preference when the actor has expressed none — so the
+ * harness's dark mode sets `prefers-color-scheme: dark` AND `<html class="fi dark">`
+ * at the same time, and the two mechanisms agree in every case the suite ran.
+ *
+ * They disagree the moment an actor CHOOSES a theme, which is the entire point of
+ * a theme switcher. Measured in a real consumer panel (the consumer's adoption T057) and
+ * then reproduced here: OS light + the actor picking dark leaves the package's
+ * light rules winning while Filament's dark text colour is inherited — a white row
+ * with white text on it.
+ *
+ * These guards drive the class directly, because the class is what Filament sets.
+ */
+
+/** Computed style of the first row with the panel's theme class forced on or off. */
+function computedRowStyleForTheme(object $page, string $property, bool $dark): mixed
+{
+    $toggle = $dark ? 'add' : 'remove';
+
+    return $page->script(
+        "(() => { document.documentElement.classList.{$toggle}('dark');"
+        .' const row = document.querySelector(\'[data-ltree-key]\');'
+        ." return getComputedStyle(row).getPropertyValue('{$property}'); })()"
+    );
+}
+
+it('follows the panel theme CLASS into dark even when the operating system is light', function () {
+    $page = visit('/admin/category-tree')->inLightMode()->assertPresent('[data-ltree-key]');
+
+    expect(computedRowStyleForTheme($page, 'background-color', dark: true))->toBe('rgb(39, 39, 42)');
+});
+
+it('follows the panel theme class back to LIGHT even when the operating system is dark', function () {
+    // The inverse, and just as wrong: an actor on a dark machine who picks the
+    // light theme must not get a dark row painted onto a light page.
+    $page = visit('/admin/category-tree')->inDarkMode()->assertPresent('[data-ltree-key]');
+
+    expect(computedRowStyleForTheme($page, 'background-color', dark: false))->toBe('rgb(255, 255, 255)');
+});
+
+it('never paints a row in the same colour as the text on it', function () {
+    // ⚠️ This is the HARM, asserted directly rather than via one of its causes.
+    // The shipped defect was not "the wrong grey" — it was `rgb(255, 255, 255)` on
+    // `rgb(255, 255, 255)`, a contrast ratio of 1:1, with the category name simply
+    // not rendered. A guard on the background alone would pass the day someone
+    // changes the palette and reintroduces the collision with different values.
+    $page = visit('/admin/category-tree')->inLightMode()->assertPresent('[data-ltree-key]');
+
+    $result = $page->script(
+        '(() => { document.documentElement.classList.add(\'dark\');'
+        .' const row = document.querySelector(\'[data-ltree-key]\');'
+        .' const style = getComputedStyle(row);'
+        .' return { bg: style.backgroundColor, text: style.color }; })()'
+    );
+
+    expect($result['bg'])->not->toBe($result['text']);
+});
+
+it('re-colours the confirmation panel for the theme CLASS, not the operating system', function () {
+    $page = visit('/admin/category-tree')->inLightMode()->assertPresent('[data-ltree-key]');
+
+    $background = $page->script(
+        "(() => { document.documentElement.classList.add('dark');"
+        ." const el = document.createElement('div'); el.className = 'ltree-confirm';"
+        .' document.body.appendChild(el);'
+        ." return getComputedStyle(el).getPropertyValue('background-color'); })()"
+    );
+
+    expect($background)->toBe('rgb(39, 39, 42)');
+});

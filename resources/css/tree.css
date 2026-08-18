@@ -182,37 +182,55 @@
     padding: 0.5rem;
 }
 
-@media (prefers-color-scheme: dark) {
-    .ltree-row {
-        background-color: rgb(39 39 42);
-        border-color: rgb(63 63 70);
-    }
+/*
+ * Dark mode — keyed to the panel's THEME CLASS, never to the operating system.
+ *
+ * ⚠️ This was `@media (prefers-color-scheme: dark)` and that was wrong (PA-17,
+ * finding F38). Filament does not read the OS preference at paint time: its theme
+ * script resolves the actor's choice — or the OS, when the actor has expressed
+ * none — and stamps `<html class="dark">`. The media query and the class therefore
+ * agree only while the actor has chosen nothing, and disagree the moment anyone
+ * uses the theme switcher, which is what a theme switcher is for.
+ *
+ * What shipped: an actor on a light machine picking the dark theme got the light
+ * rules below (an explicit white background) while inheriting Filament's dark text
+ * colour — `rgb(255 255 255)` on `rgb(255 255 255)`, a contrast ratio of 1:1, with
+ * the row's name not rendered at all. The inverse, a dark machine and the light
+ * theme, painted dark rows onto a light page.
+ *
+ * ⚠️ The media query is GONE rather than kept alongside the class. Keeping both
+ * would be dead CSS: every document either has the class or does not, so a
+ * class-based rule and its `:not()` cover every case the media query could, and a
+ * reader would have to work out which one wins. This component only ever renders
+ * inside `<x-filament-panels::page>`, so the class is always managed.
+ *
+ * ⚠️ The old comment here claimed no suite assertion could catch a white-on-white
+ * confirmation. That was true of the assertions that existed, and it was true for
+ * the wrong reason: `inDarkMode()` emulates the OS, and Filament's own script then
+ * follows it, so both mechanisms moved together and nothing could disagree. The
+ * guards in StylingTest.php now drive the class directly, and all four were watched
+ * failing against this file before it changed.
+ */
+.dark .ltree-row {
+    background-color: rgb(39 39 42);
+    border-color: rgb(63 63 70);
+}
 
-    .ltree-row:hover {
-        border-color: rgb(82 82 91);
-    }
+.dark .ltree-row:hover {
+    border-color: rgb(82 82 91);
+}
 
-    .ltree-handle,
-    .ltree-empty {
-        color: rgb(161 161 170);
-    }
+.dark .ltree-handle,
+.dark .ltree-empty {
+    color: rgb(161 161 170);
+}
 
-    /*
-     * ⚠️ The confirmation panel MUST be re-coloured here. Its light rule paints an
-     * explicit white background, which inside a dark panel is white-on-white — the
-     * confirmation would be present, focusable and unreadable.
-     *
-     * No suite assertion can catch that: the harness serves the compiled CSS, but
-     * nothing asserts this panel's colours, and a passing accessibility check would
-     * not either. It is on the T062 live-verification list for exactly that reason.
-     */
-    .ltree-confirm {
-        background-color: rgb(39 39 42);
-        border-color: rgb(63 63 70);
-    }
+.dark .ltree-confirm {
+    background-color: rgb(39 39 42);
+    border-color: rgb(63 63 70);
+}
 
-    .ltree-spike-probe {
-        background-color: rgb(37 99 235);
-        color: rgb(255 255 255);
-    }
+.dark .ltree-spike-probe {
+    background-color: rgb(37 99 235);
+    color: rgb(255 255 255);
 }
