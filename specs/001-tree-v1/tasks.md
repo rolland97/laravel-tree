@@ -326,6 +326,13 @@ code at all). Parallelising the stories destroys the proof.
       machine with a real screen reader and **working audio**. **If no such machine is available,
       leave this task OPEN and report SC-011 as UNPROVED.** Do not close it with an accessibility
       tree dump or an axe pass; neither proves announcements work as heard sentences.
+
+      ⚠️ **DEFERRED TO THE NEXT RELEASE by owner decision, 2026-08-18.** The screen-reader
+      walk is deliberately out of scope for this release, in this package **and** in the
+      consumer application (its SC-007 is deferred on the same decision). This task stays
+      **OPEN**, because deferring a proof is not obtaining one: SC-011 remains **UNPROVED**
+      and must not be reported otherwise. What changed is only that it no longer blocks a
+      release — it is scheduled work, not an omission.
 - [ ] T100 [POLISH] ⚠️ **Do NOT tag.** The release gate is the consumer application adopting
       this package through a path repository with its suite green — including its existing audit
       tests **unchanged**, which is the strongest signal the event seam held. Tagging is
