@@ -37,6 +37,23 @@ beforeEach(function () {
     $this->alpha = Category::create(['name' => 'Alpha', 'parent_id' => $this->parent->id, 'position' => 2]);
 });
 
+/**
+ * ⚠️ Restored HERE, not only set in `beforeEach()`, because two cases below flip
+ * `$moveAuthorization` MID-TEST and the property is a process-global static.
+ *
+ * Setting it at the start of a file only protects that file: with
+ * `executionOrder="random"` (R-029) the next file to run inherits whatever the last
+ * one left, and a `deny` leaking out of here turned two of `KeyboardReorderTest`'s
+ * commits into refusals — a green suite in one seed and two failures in another,
+ * reported against code that had not changed. A test that mutates shared state puts
+ * it back.
+ */
+afterEach(function () {
+    CategoryTreePage::$moveAuthorization = 'allow';
+    CategoryTreePage::$immovableName = null;
+    CategoryTreePage::$hideBravo = false;
+});
+
 /** The rendered order of a group, read from the DOM. */
 function heldPreviewRenderedOrder(object $page, int|string $parentKey): mixed
 {
@@ -155,6 +172,56 @@ it('leaves the rendered order matching the stored order after a put-down', funct
         ->all();
 
     expect($stored)->toBe(['Charlie', 'Alpha', 'Bravo']);
+});
+
+// ── The preview vs a server that says no ─────────────────────────────────────
+
+it('puts the row back when the server refuses the put-down', function () {
+    // ⚠️ Raised by the consumer's critique as the one untested path PA-15 opened. The
+    // preview is optimistic, so between the put-down and the server's answer the actor
+    // is looking at an order that may never be written — and a REFUSED move is exactly
+    // the case where the two must reconcile. If the tree kept showing the preview, the
+    // actor's next move would be resolved against an order that does not exist.
+    //
+    // ⚠️ Permission is flipped AFTER the hold begins, on purpose: that is a real
+    // sequence (an actor's scope can change between queueing a move and committing it)
+    // and it is the only way to reach a server refusal with a preview already on screen.
+    // A pick-up refusal would never get this far — PA-13 stops it before the hold.
+    $before = Stored::order($this->parent->id);
+
+    $page = visit('/admin/category-tree');
+    heldPreviewFocus($page, $this->alpha->id);
+    heldPreviewSend($page, ' ');
+    heldPreviewSend($page, 'ArrowUp');
+
+    expect(heldPreviewRenderedOrder($page, $this->parent->id))->toBe('Charlie|Alpha|Bravo');
+
+    CategoryTreePage::$moveAuthorization = 'deny';
+
+    heldPreviewSend($page, 'Enter');
+    $page->script('(async () => { await new Promise(r => setTimeout(r, 900)); return true; })()');
+
+    // Nothing was written…
+    expect(Stored::order($this->parent->id))->toBe($before);
+
+    // …and the screen agrees with the database again.
+    expect(heldPreviewRenderedOrder($page, $this->parent->id))->toBe('Charlie|Bravo|Alpha');
+});
+
+it('says why the refused put-down changed nothing', function () {
+    // ⚠️ Silence after a move that visibly happened and then un-happened is the worst
+    // of both: the actor sees the row snap back with no reason given.
+    $page = visit('/admin/category-tree');
+    heldPreviewFocus($page, $this->alpha->id);
+    heldPreviewSend($page, ' ');
+    heldPreviewSend($page, 'ArrowUp');
+
+    CategoryTreePage::$moveAuthorization = 'deny';
+
+    heldPreviewSend($page, 'Enter');
+    $page->script('(async () => { await new Promise(r => setTimeout(r, 900)); return true; })()');
+
+    expect(heldPreviewAnnouncement($page))->toContain('cannot move');
 });
 
 // ── PA-16 — Tab leaves, and leaving abandons ─────────────────────────────────

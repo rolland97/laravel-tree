@@ -30,6 +30,22 @@ beforeEach(function () {
     CategoryTreePage::$immovableName = null;
 });
 
+/**
+ * ⚠️ Restored, not merely set at the start.
+ *
+ * Four cases below name a node this host refuses to move, and `$immovableName` is a
+ * process-global static. Under `executionOrder="random"` (R-029) a leaked `'Bravo'`
+ * lands in the next file that happens to have a Bravo in its fixture — which
+ * `KeyboardReorderTest` does — and its pick-up is then refused for a reason nothing in
+ * that file mentions. That is what the "one flake seen once" in the validation log
+ * actually was: not a race on the cancel path, but this state arriving from elsewhere.
+ */
+afterEach(function () {
+    CategoryTreePage::$immovableName = null;
+    CategoryTreePage::$moveAuthorization = 'allow';
+    CategoryTreePage::$hideBravo = false;
+});
+
 function pickUpRefusalAnnouncement(object $page): mixed
 {
     return $page->script("(document.querySelector('.ltree-live-region')?.textContent ?? 'NO-REGION').trim()");

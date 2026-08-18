@@ -1658,6 +1658,46 @@ abandons the hold" cannot fail while nothing moves at all.
 
 ⚠️ **One flake seen once**: `leaves the tree unchanged when a held move is cancelled`
 failed in a full run and passed alone and in the two full runs after. Recorded rather
-than dismissed — if CI reproduces it, the cancel path has a race worth finding.
+than dismissed — **and it was not a race.** See F37, which found it the next day.
+
+### ⚠️ Finding F37 — the flake was leaked global state, and the new tests made it worse
+
+`CategoryTreePage`'s three switches — `$hideBravo`, `$moveAuthorization`,
+`$immovableName` — are **process-global statics**, deliberately (a browser test's writes
+happen in the served request's container, which is why `MoveCounter` is one too). Two of
+the new files SET them mid-test and never put them back:
+
+- `PickUpRefusalTest` leaves `$immovableName = 'Bravo'`, and `KeyboardReorderTest`'s
+  fixture has a **Bravo** — whose pick-up is then refused for a reason nothing in that
+  file mentions. **That is the flake recorded above**, and it explains why it passed
+  alone: the leak needs one specific file to run before another.
+- The refused-put-down case added on 2026-08-18 leaves `$moveAuthorization = 'deny'`,
+  which turned two of `KeyboardReorderTest`'s commits into refusals — **two failures in
+  one seed and a clean suite in the next**, reported against code that had not changed.
+
+⚠️ **Setting state in `beforeEach()` protects the file that does it and nothing else.**
+With `executionOrder="random"` (R-029) the next file inherits whatever the last one left,
+so the fix is on **both** sides: the mutator restores in `afterEach()`, and a file that
+DEPENDS on a value states it rather than assuming it. Both were applied.
+
+⚠️ **The suite reported this as two different symptoms on two different days** — a
+one-off flake on a cancel, and a pair of commit failures — and neither symptom named the
+cause. A random execution order is what surfaced it at all; it would otherwise have sat
+until someone added a fixture with the wrong name in it.
+
+Verified with two consecutive full runs on different seeds: **321 passed**.
+
+### Coverage added the same day — a server refusal AFTER a preview
+
+Raised by the consumer's critique as the one path PA-15 opened and nothing covered: the
+preview is optimistic, so a refused put-down must reconcile the screen with the database.
+Two cases now pin it — nothing written, the rendered order back to the stored order, and
+the refusal announced.
+
+⚠️ **Honest about what they are.** Both passed on their first run, and what they guard is
+Livewire's morph diffing against the LIVE DOM rather than any package code — so they are
+a REGRESSION guard, not a watched-red one. They are not vacuous: each asserts the preview
+IS on screen before the refusal, so a preview that never happened fails the first
+assertion and one that never reverted fails the last.
 
 Suite after: **319 passed**, PHPStan level 8 clean, Pint clean.

@@ -22,6 +22,13 @@ use Rolland\Tree\Tests\Stored;
  */
 beforeEach(function () {
     CategoryTreePage::$hideBravo = false;
+
+    // ⚠️ Stated, not assumed. These cases commit real moves, so they depend on the
+    // host permitting them — and `$moveAuthorization` is a process-global static that
+    // another file can leave set to `deny`. Declaring the state you depend on is what
+    // makes `executionOrder="random"` safe (R-029).
+    CategoryTreePage::$moveAuthorization = 'allow';
+    CategoryTreePage::$immovableName = null;
     MoveCounter::reset();
 
     // One parent with three children, positional order the reverse of alphabetical.
