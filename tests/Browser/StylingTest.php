@@ -189,7 +189,7 @@ it('still follows the accent when a host overrides it at runtime', function () {
  * at the same time, and the two mechanisms agree in every case the suite ran.
  *
  * They disagree the moment an actor CHOOSES a theme, which is the entire point of
- * a theme switcher. Measured in a real consumer panel (the consumer's adoption T057) and
+ * a theme switcher. Measured in a real consumer panel (the consumer's adoption, T057) and
  * then reproduced here: OS light + the actor picking dark leaves the package's
  * light rules winning while Filament's dark text colour is inherited — a white row
  * with white text on it.

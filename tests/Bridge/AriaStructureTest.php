@@ -19,7 +19,7 @@ use Rolland\Tree\Tests\Fixtures\Panel\CategoryTreePage;
  * required-children check walks ANCESTORS rather than demanding a direct child. So an
  * automated pass proved nothing here, exactly as `AGENTS.md` R-018 says about
  * announcements, and the defect was found by a consumer whose own frozen selectors
- * were written against `[role="tree"] > [role="treeitem"]` (the consumer's adoption T048).
+ * were written against `[role="tree"] > [role="treeitem"]` (the consumer's adoption, T048).
  *
  * ⚠️ Asserted by WALKING THE DOM, not by matching markup. A string search for
  * `ltree-branch` would go green the moment the class was renamed while the structure

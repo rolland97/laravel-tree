@@ -1,7 +1,7 @@
 # laravel-tree
 
 Adjacency-list tree management for Eloquent, plus an accessible drag-and-keyboard Filament v5
-tree page. Extracted from the consumer application, where every behaviour here already runs
+tree page. Extracted from a private consumer application, where every behaviour here already runs
 in production.
 
 ⚠️ **This file is a pointer, not a summary.** It names where each authority lives and stops.
@@ -104,10 +104,10 @@ Each is stated in full where it belongs; these are the pointers.
 ## Relationship to the consumer application
 
 That repository is the **source** of this extraction and the **first consumer** of the result.
-It is at `the consumer's checkout` (GitLab, self-hosted — use `glab`, not `gh`).
+It is a private application, checked out beside this repository.
 
 - The extraction record, the five settled decisions, and the traps already paid for:
-  `the consumer's package notes` there.
+  its own package notes there.
 - ⚠️ **This package's spec numbering is its own.** `specs/001-tree-v1` here is unrelated to that
   repository's `specs/NNN-`. The *adoption* half will be an app slice numbered there.
 - ⚠️ **Never run a spec-kit script for this package from a session rooted in that repository.**

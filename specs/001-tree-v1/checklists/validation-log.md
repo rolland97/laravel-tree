@@ -1376,7 +1376,7 @@ Suite after: **270 passed**, PHPStan level 8 clean on both sides.
 
 ## PA-7 / PA-8 — two host slots the consumer's browser suite demanded
 
-Both were raised by the consumer's adoption T048, where 24 of 26 browser cases stayed red
+Both were raised by the consumer's adoption, T048, where 24 of 26 browser cases stayed red
 after a purely mechanical selector re-point. Neither is cosmetic.
 
 ### ⚠️ Finding F26 — the TREE's accessible name was not host-overridable
@@ -1492,7 +1492,7 @@ expensive was that the false half foreclosed work — exactly the asymmetry R-03
 
 ## PA-10…PA-14 — five gaps one consumer's browser suite found
 
-⚠️ **All five came from the SAME source**: the consumer's adoption's T048, where 24 of 26
+⚠️ **All five came from the SAME source**: the consumer's adoption, T048, where 24 of 26
 browser cases stayed red after a mechanical selector re-point. None of them is
 visible to this package's own suite as it was written, and three are regressions
 against behaviour the source application has shipped for months (`AGENTS.md`
@@ -1704,7 +1704,7 @@ Suite after: **319 passed**, PHPStan level 8 clean, Pint clean.
 
 ## ⚠️ Findings F38 / F39 — the consumer's LIVE dark walk, which no automated case could see
 
-Both found on 2026-08-18 by the consumer's adoption T057, driving the real Office panel in a real
+Both found on 2026-08-18 by the consumer's adoption, T057, driving the real Office panel in a real
 browser. Neither is reachable from this package's own suite, and that is the point: F38 is
 invisible to a headless run that never sets a host's theme, and F39 is invisible to any
 assertion that reads the DOM rather than watching where focus went.

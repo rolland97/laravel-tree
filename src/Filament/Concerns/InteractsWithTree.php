@@ -239,7 +239,7 @@ trait InteractsWithTree
      * title, its body and its affected-counts line into ONE paragraph, which then
      * rendered under the generic heading: two headings, the generic one winning the
      * visual hierarchy, and the actor's real question demoted to the first sentence
-     * of the body (the consumer's adoption T058).
+     * of the body (the consumer's adoption, T058).
      *
      * @return string|array{heading?: string, message: string}|null
      */

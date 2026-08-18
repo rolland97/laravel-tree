@@ -98,7 +98,7 @@
                 volunteers it, and reached by a keyboard actor only by tabbing
                 forward blind. Measured in a real consumer panel: the confirmation
                 opened and `document.activeElement` was still the drag handle of the
-                row just dragged (the consumer's adoption T057, finding F39).
+                row just dragged (the consumer's adoption, T057, finding F39).
 
                 Focusing the region rather than the submit button: the heading is
                 what the actor needs read to them, and pre-focusing "Move it" would

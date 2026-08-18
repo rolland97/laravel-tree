@@ -116,7 +116,7 @@ Each rule is tagged:
   > server knows nothing about**, so a re-render wiped it — the region needs to be excluded from
   > morphing. And a host panel polling a notification bell every 30 seconds silently abandoned
   > every held node until the morph hook checked *which* component had morphed. *Inherited:
-  > the consumer's working log § What US3 cost.*
+  > the consumer's own working log, § What US3 cost.*
 
 - **R-018** — ⚠️ **Never record an accessibility-tree dump or an automated pass as evidence that
   announcements work.** Axe proves a name *exists*; a dump proves the *data* a reader receives.
@@ -128,8 +128,8 @@ Each rule is tagged:
 
 - **R-019** — A host MUST get a correctly styled tree with **no bundler, no theme edit and no
   build step of its own**. Package styling ships **compiled and committed**, registered as a
-  Filament asset. *Source: constitution Principle VI; spec FR-028; consumer
-  `the consumer's package-documentation rule` rule 3.* **[ratified]**
+  Filament asset. *Source: constitution Principle VI; spec FR-028; the
+  consumer's package-documentation rule 3.* **[ratified]**
 - **R-020** — Package markup MUST NOT contain bare host-framework utility classes, and the package
   MUST NOT ask a host to point a content glob into `vendor/`. Use Filament's own components for
   anything they cover, and package-owned classes for the rest. *Source: constitution Principle VI;
@@ -138,8 +138,8 @@ Each rule is tagged:
   > ⚠️ **This is why the source blades are a REWRITE, not a port.** A Filament panel compiles only
   > the utilities its own CSS references, so a blade living in `vendor/` renders unstyled — and the
   > failure is silent, reading as a bug in the host's own CSS. PKG-01 originally called the branch
-  > blade "mostly generic", which was wrong and made the work look smaller. *Inherited: consumer
-  > `the consumer's package notes` § Source inventory.*
+  > blade "mostly generic", which was wrong and made the work look smaller. *Inherited: the
+  > consumer's package notes, § Source inventory.*
 
 - **R-021** — Inherit the host panel's accent colour through its theme variables rather than
   defining a palette. Render correctly in **both** light and dark. *Source: spec FR-030.*
@@ -163,7 +163,7 @@ Each rule is tagged:
   > ⚠️ Two of fourteen guards in the source application passed against the defect as first written,
   > because the bug wrote colliding positions and the read tie-broke by **name** — so both
   > implementations produced the same visible order. Fixtures were renamed so they could not.
-  > *Inherited: the consumer's package notes § Traps, item 2.*
+  > *Inherited: the consumer's package notes, § Traps, item 2.*
 
 - **R-026** — The suite MUST include a **second, unrelated model**. One consumer proves nothing.
   *Source: constitution Principle V; spec FR-045, SC-010.* **[ratified]**
@@ -180,7 +180,7 @@ Each rule is tagged:
   Livewire component test dispatches through the container's method injection, which matches by
   name and **silently discards unknown keys** — a probe passed two arguments the method did not
   declare and ran clean on defaults. When a signature's meaning changes, **rename it**. *Inherited:
-  the consumer's package notes § Traps, item 1.* **[inherited]**
+  the consumer's package notes, § Traps, item 1.* **[inherited]**
 
 ## Static analysis, style, Git and release
 
@@ -204,12 +204,12 @@ Each rule is tagged:
   Development Workflow.* **[ratified]**
 - **R-035** — ⚠️ **Do not tag until a real consumer has been built against this package
   unpublished.** A published version cannot be retracted, and an API frozen without a consumer is
-  frozen against guesses. The first consumer is the consumer application, adopted through a
+  frozen against guesses. The first consumer is a private application, adopted through a
   local path reference. *Source: constitution § Development Workflow; spec § Assumptions;
-  the consumer's package notes D4.* **[ratified]**
+  the consumer's package notes, D4.* **[ratified]**
 - **R-036** — The repository is **private** until that adoption is green. Distribution archives
   MUST exclude specs, agent configuration, tests and build sources **before** the first tag.
-  *Source: constitution Principle VI; the consumer's package notes D5.*
+  *Source: constitution Principle VI; the consumer's package notes, D5.*
   **[ratified]**
 
 ## Working agreements

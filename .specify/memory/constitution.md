@@ -50,7 +50,7 @@ Deferred TODOs: none. RATIFICATION_DATE is the repository's first-commit date
 (2026-08-14), which is when the project was adopted.
 
 ⚠ Provenance: Principles II and IV are not authored here. They are the recorded
-outcomes of slice 071 in the consumer application, which paid for them with
+outcomes of the consumer's keyboard-order slice, which paid for them with
 two live ordering defects and an accessible-name defect that four correct aria-*
 assertions failed to catch. They are constitutional precisely so a later
 convenience API cannot quietly re-introduce what they forbid. Evidence:

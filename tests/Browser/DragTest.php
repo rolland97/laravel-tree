@@ -217,7 +217,7 @@ it('moves focus into the confirmation when it appears', function () {
     // still the drag handle of the row that had just been dragged. A keyboard
     // actor had to tab forward blind to reach "Move it", and a screen-reader actor
     // was told nothing — the live region still held the PREVIOUS announcement
-    // (the consumer's adoption T057).
+    // (the consumer's adoption, T057).
     //
     // ⚠️ An `alertdialog` that never receives focus is announced only by the AT
     // that happens to volunteer it, which is exactly the support that varies. The

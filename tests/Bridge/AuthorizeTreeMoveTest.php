@@ -17,7 +17,7 @@ use Rolland\Tree\Tests\Stored;
  * and did nothing else, and **visibility is not permission**. The first real
  * consumer calls `authorize('update', $category)` on every committing path and
  * pins an actor holding `view` and NOT `update` being refused with nothing moved
- * (the consumer's keyboard-order test `Test:152`). Adopted as it stood, that
+ * (the consumer's keyboard-order test). Adopted as it stood, that
  * actor's move would have SUCCEEDED.
  *
  * ⚠️ The public contract already claimed this worked — *"`placeNode()` re-checks

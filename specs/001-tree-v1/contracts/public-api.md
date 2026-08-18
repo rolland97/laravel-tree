@@ -325,7 +325,7 @@ let the host put any of it in the heading, because the heading was not a slot. W
 actually shipped was a title, a body and an affected-counts line composed into the one string the
 message slot accepted — and the live walk showed the result rendering under the package's generic
 heading, with the actor's real question demoted to the body's first sentence. PA-6 was raised from
-that screen (the consumer's adoption T058); see below.
+that screen (the consumer's adoption, T058); see below.
 
 #### `authorizeTreeMove()` — ⚠️ AMENDMENT (during implementation, 001-tree-v1), **security**
 
@@ -511,7 +511,7 @@ A `treeitem` is a **direct child** of the `tree` or of a `group`:
 **What was wrong.** Every row and its children were wrapped in a `.ltree-branch` div,
 so `role="tree"` owned generic divs and the rows were its GRANDchildren. ARIA names
 `treeitem` and `group` as the tree's required owned elements; an unroled element in
-between is neither (the consumer's adoption T048 — **PA-10**).
+between is neither (the consumer's adoption, T048 — **PA-10**).
 
 ⚠️ **axe does not report this, which is why it shipped.** The package's own
 `assertNoAccessibilityIssues()` passed with the wrapper in place, because axe's
@@ -538,7 +538,7 @@ now carries the flex column it provided.
 never met. The server narrows the rows and keeps a match's ancestors so it stays
 reachable; the client decides which branches are open and knew nothing about the
 search. So a match inside a closed branch was present in the DOM and **invisible** — a
-search that found things and showed you none of them (the consumer's adoption T048 — **PA-11**).
+search that found things and showed you none of them (the consumer's adoption, T048 — **PA-11**).
 
 ⚠️ **Not only a `treeBranchesStartCollapsed()` problem.** Any actor who had closed a
 branch before typing got the same nothing, on any host, since the search shipped.
@@ -601,7 +601,7 @@ protected it.** The markup is client-side and an actor can edit it.
 every move. morphdom replaced the focused row, focus fell to `<body>`, and a keyboard
 user was returned to the top of the document after each reorder — having to tab all the
 way back in to make a second one. The roving tabindex still *said* a row owned the tab
-stop; nothing held the DOM focus (the consumer's adoption T048 — **PA-14**).
+stop; nothing held the DOM focus (the consumer's adoption, T048 — **PA-14**).
 
 ⚠️ **The morph hook existed and did nothing.** It checked which component had morphed
 and then had no body at all. The check was written for a real defect — a host's
@@ -625,7 +625,7 @@ move and then asks where focus is.
 **What was wrong.** The arrow keys announced a new position and **moved nothing**. A
 screen-reader user heard *"position 1 of 3"*; anyone watching the screen saw the row
 sit still until Enter. One keystroke told two audiences different things, and a sighted
-keyboard user had no way to know the key had worked (the consumer's adoption T048 — **PA-15**).
+keyboard user had no way to know the key had worked (the consumer's adoption, T048 — **PA-15**).
 
 The held row's **block** — the row, its leaf slot and its children group — is moved
 among its siblings on each arrow press, and put back exactly on cancel or abandon.
@@ -657,7 +657,7 @@ rendered order after a keyboard move must do the same.
 a host's row actions are real focusable buttons **inside** it — so Tab moved focus from
 the row to its own edit button, `onTreeFocusOut()` saw focus still inside
 `[role="tree"]`, and the node stayed held while the actor had visibly left it
-(the consumer's adoption T048 — **PA-16**).
+(the consumer's adoption, T048 — **PA-16**).
 
 ⚠️ **`KeyboardTraversalTest`'s one-tab-stop claim counts ROWS** with `tabindex="0"`, so
 it cannot see this. The claim is about the tree's rows, not about everything focusable
@@ -858,7 +858,7 @@ always `tree::tree.confirm.heading` — *"Confirm this move"* — so a host with
 ask had nowhere to ask it. The first consumer composed its title, its body and its
 affected-counts line into the single string, and the rendered confirmation carried two headings:
 the package's generic one in the heading slot, and *"Make this branch private?"* buried as the
-first sentence of the paragraph. The generic one won the visual hierarchy (the consumer's adoption T058).
+first sentence of the paragraph. The generic one won the visual hierarchy (the consumer's adoption, T058).
 
 A host may now return either shape:
 

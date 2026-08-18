@@ -25,7 +25,7 @@ a partial list and left the rest holding stale, colliding positions; cross-paren
 renumbered the right list at the wrong index. It is also an authorization hole — an index lets a
 tampered payload address a node privacy hides, whereas a reference must be proven visible.
 
-**Evidence**: the consumer's keyboard-order slice, an internal merge request.
+**Evidence**: the consumer's keyboard-sibling-order slice.
 
 ---
 
@@ -75,7 +75,7 @@ numeric string would silently never match its own group under a strict compariso
 would be refused as "reference not in group" for a perfectly valid reference. Found by static
 analysis in the source application, not by a test.
 
-**Evidence**: `ResolveSiblingPlacement::completeGroup()` in consumer carries this cast with a
+**Evidence**: `ResolveSiblingPlacement::completeGroup()` in the consumer carries this cast with a
 comment saying why.
 
 ---
@@ -249,7 +249,7 @@ Not decisions, but they will cost time again if forgotten:
 2. **`$wire.$refresh()` returns a promise that never resolves** when awaited inside a page
    evaluation. The source application's run hung for fifteen minutes. Void it.
 
-**Evidence**: the consumer's working log § What US3 cost, finding 7.
+**Evidence**: the consumer's own working log, § What US3 cost, finding 7.
 
 ---
 

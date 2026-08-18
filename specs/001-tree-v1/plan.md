@@ -184,7 +184,7 @@ quietly deleted:**
   amendment in `contracts/public-api.md`.
 
 **Structure Decision**: Single package with a conditionally-registered bridge, per
-`the consumer's package-documentation rule` rule 2 in the consumer's repository. Not split into two repositories:
+the consumer's package-documentation rule 2. Not split into two repositories:
 that is warranted only when a Filament major breaks the bridge while the core is untouched, and
 pre-splitting costs a subtree-split pipeline for no present benefit.
 
