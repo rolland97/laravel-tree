@@ -70,7 +70,7 @@ final class TestPanelProvider extends PanelProvider
             // panel's routes while booting, so a page added afterwards resolves to
             // a 404 — and a 404 page passes `assertNoAccessibilityIssues()`
             // vacuously, which is how this nearly read as a green spike.
-            ->pages([SpikePage::class, CategoryTreePage::class, RecordingTreePage::class, AnnouncementTreePage::class, SearchSlotTreePage::class, NamedTreePage::class, CollapsedTreePage::class, ConfirmHeadingTreePage::class])
+            ->pages([SpikePage::class, CategoryTreePage::class, RecordingTreePage::class, AnnouncementTreePage::class, SearchSlotTreePage::class, NamedTreePage::class, CollapsedTreePage::class, ConfirmHeadingTreePage::class, OrderedTwinTreePage::class, UnorderedTreePage::class])
             // ⚠️ The PA-1 host: a tree on a RESOURCE INDEX page. Registered here
             // for the same reason the pages are — Filament builds a panel's routes
             // while booting, so anything added afterwards resolves to a 404.

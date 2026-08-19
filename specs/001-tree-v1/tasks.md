@@ -356,6 +356,45 @@ code at all). Parallelising the stories destroys the proof.
 
 ---
 
+## Phase 9: PA-18 — ordering as a page-level slot (after v0.9.0)
+
+⚠️ Raised by the SECOND consumer slice (074, a Drive-style folder browser), which is blocked
+until this merges. Contract: `contracts/package-amendment-pa18.md` in that repository, C1–C8
+binding. ⚠️ **No tag is cut for this** — the consumer tracks `dev-001-tree-v1` on purpose, and
+the surface is still moving (`AGENTS.md` R-035).
+
+- [X] T101 [PA-18] Twin host fixtures: `OrderedTwinTreePage` and `UnorderedTreePage`, the second
+      EXTENDING the first and overriding `treeReorderEnabled()`, the slug and the title — nothing
+      else. ⚠️ C5–C8 claim things are *unchanged*, and the only honest way to assert that is to
+      diff two pages that differ in nothing else. Two independently written fixtures could drift
+      into a difference the diff would then blame on the slot.
+      ⚠️ `canMoveNode()` is deliberately left at its default `true`, so any refusal wording
+      reaching the live region can only have come from the wrong slot.
+- [X] T102 [PA-18] Watch C1/C2 fail — the handle and `draggable="true"` render on a host that has
+      retired ordering.
+- [X] T103 [PA-18] Watch C3/C4 fail — Space picks a node up and announces *"Picked up Charlie…"*
+      on that same host. ⚠️ Note the wording of the red: it is a PICK-UP, not a permission
+      refusal. A refusal here would have meant `canMoveNode()` was doing the work and the R1
+      defect had been reproduced rather than fixed.
+- [X] T104 [PA-18] `treeReorderEnabled(): bool` on `InteractsWithTree`, **defaulting to true**.
+      ⚠️ The default cannot be false: every existing host already has ordering.
+- [X] T105 [PA-18] Gate the handle in `tree-branch.blade.php` and pass the answer to the Alpine
+      controller as `x-data="ltree(…, …, @js($this->treeReorderEnabled()))"`; guard the Space
+      binding in `resources/js/tree.js`. ⚠️ `npm run build` — `resources/dist/` is COMMITTED and a
+      stale bundle ships broken code every local check calls green.
+- [X] T106 [PA-18] Prove the C5–C8 *preservation* guards discriminate, since none of them has ever
+      been red. One mutation each: drop `aria-posinset`/`aria-setsize` (C5), drop the chevron (C6),
+      drop the search toolbar (C7), flip the default to false (C8). Recorded in the validation log.
+- [X] T107 [PA-18] ⚠️ Check whether the blade guard and the controller guard are the two-mechanism
+      shape findings F1/F9/F10 describe, by mutating **each alone**. They are not — they cover
+      different surfaces and each reddens guards the other leaves green.
+- [X] T108 [PA-18] Document PA-18 beside PA-1…PA-17: `contracts/public-api.md` member table and
+      amendment section, and a README section separating it from `canMoveNode()`.
+
+**Checkpoint**: `composer test`, `composer analyse`, `composer test:lint` green; 074 unblocked.
+
+---
+
 ## Dependencies & execution order
 
 ### Phase dependencies

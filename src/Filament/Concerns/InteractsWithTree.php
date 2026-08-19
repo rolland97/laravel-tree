@@ -160,6 +160,41 @@ trait InteractsWithTree
     }
 
     /**
+     * Does this page offer sibling ordering AT ALL? Defaults to `true`, which is what
+     * every host got before this slot existed.
+     *
+     * ⚠️ Package amendment PA-18, requested by the first real consumer for a page that
+     * has no concept of order — a Drive-style folder browser, where the tree is a
+     * NAVIGATION control and the position of a folder among its siblings means nothing.
+     *
+     * ⚠️ **This is not `canMoveNode()`, and the difference is the whole reason the slot
+     * exists.** That slot answers *"may this ACTOR move this NODE"*, and a false answer
+     * REFUSES a pick-up: the drag handle still renders on every row, and the keyboard
+     * still answers Space with a permission refusal. A page that had retired ordering
+     * and expressed it that way would show an affordance it cannot honour, and tell a
+     * screen-reader user they lack permission for a concept the page does not have —
+     * a lie in the only channel that user has (the consumer's research R1).
+     *
+     * This slot answers *"does ordering EXIST here"*, and a false answer removes the
+     * affordance rather than refusing it: no handle, nothing draggable, no Space
+     * binding, and a live region that stays silent.
+     *
+     * ⚠️ **The default cannot be false.** Every existing host already has ordering, and
+     * flipping the default would silently remove it from all of them.
+     *
+     * ⚠️ **Presentation, not permission — and deliberately so.** This does NOT refuse
+     * `placeNode()`. The security boundary is unchanged and is still
+     * `authorizeTreeMove()`, re-decided on every committing call (PA-2). Making a
+     * `false` here refuse the committing path would also foreclose drag-to-nest, which
+     * is a MOVE rather than a reorder and which the same consumer needs next — the one
+     * thing the contract puts explicitly out of scope.
+     */
+    public function treeReorderEnabled(): bool
+    {
+        return true;
+    }
+
+    /**
      * The package's tree view.
      *
      * ⚠️ **A METHOD, not a `$view` property, and this is not a style choice — it is

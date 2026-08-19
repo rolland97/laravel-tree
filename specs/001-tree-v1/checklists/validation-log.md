@@ -1848,3 +1848,144 @@ times, and the full suite passed. It has F37's shape — a browser test's reques
 this process — but `$hideBravo` is set by both files' `beforeEach`, so that particular static is
 not the culprit. **Recorded rather than dismissed**, which is what F37 taught: the same symptom
 was called a flake for a day before it turned out to be leaked state.
+
+---
+
+## PA-18 — ordering as a page-level slot (T101–T108)
+
+Raised by the SECOND consumer slice (074), whose page is a folder browser with no
+concept of sibling order. Contract C1–C8, binding. Every red below was observed;
+none is inferred.
+
+**Baseline before any change**: `composer test` → `332 passed (690 assertions)`.
+
+### Mutation red, C1–C4 — the new behaviour
+
+These four were red **before the implementation existed**, and the red is
+mutation-grade rather than absence-grade: the classes and blades all existed, the
+handle really rendered and the keyboard really ran, so each assertion was
+discriminating a correct implementation from the live one.
+
+| Contract | Guard | Red observed |
+|---|---|---|
+| C1 | `it renders no drag handle on any row…` | `Expecting '<div wire:key=…>' not to contain 'ltree-handle'` |
+| C2 | `it renders nothing draggable…` | `Expecting '<div wire:key=…>' not to contain 'draggable="true"'` |
+| C3 | `it does not pick a node up when Space is pressed` | `Failed asserting that 'true' is null` (`aria-grabbed`) |
+| C3 | `it does not even consume the Space keystroke` | `Failed asserting that true is false` |
+| C4 | `it announces nothing at all when Space is pressed` | `Failed asserting that two strings are identical` |
+| C4 | `it does not tell the actor they lack permission to move` | `Expecting 'Picked up Charlie. Use the ar…ancel.' not to contain 'Picked up'` |
+
+⚠️ **The wording of that last red is the point, not incidental.** It says *"Picked
+up"*, NOT *"You cannot move Charlie"*. `UnorderedTreePage` leaves `canMoveNode()`
+at its default `true` precisely so that a permission refusal cannot appear here —
+and a permission refusal under C4 would have meant `canMoveNode()` was answering a
+question the page never asked, which is the consumer's research R1 defect
+**reproduced rather than fixed**. The red confirms the fixture discriminates.
+
+Also red, as absence: `it offers ordering to a host that says nothing` —
+`BadMethodCallException: Method …CategoryTreePage::treeReorderEnabled does not
+exist.` Absence red only, and recorded as such.
+
+### Mutation red, C5–C8 — the preservation guards
+
+⚠️ **These four were green from the moment they were written**, because they assert
+that nothing changed. Under `AGENTS.md` R-023 that makes them unverified until each
+is made to fail, so one mutation was applied per contract line, against the finished
+implementation, and reverted after.
+
+| # | Mutation | Guards reddened |
+|---|---|---|
+| M-A | drop `aria-posinset`/`aria-setsize` when ordering is off | 2 — `it still counts the rendered siblings on every row`, and the twin diff `it keeps every ARIA property the ordered twin renders` |
+| M-B | drop the chevron when ordering is off | 2 — `it still renders the chevron and the expanded state`, and the twin ARIA diff again |
+| M-C | drop the search toolbar when ordering is off | 1 — `it still renders the search input and reveals what it matched` |
+| M-D | flip the default from `true` to `false` | **3 bridge**, **19 browser** — see below |
+
+### ⚠️ The bridge suite alone could NOT have caught a false default
+
+M-D is the mutation that matters most: a false default silently retires ordering on
+every host that already has it. Run against the **whole bridge suite** it reddened
+exactly three guards — `it offers ordering to a host that says nothing`, `it still
+renders a drag handle for a host that says nothing`, `it still renders the handle
+for a node this actor may not move` — and **all three are new in this amendment**.
+Not one pre-existing bridge guard noticed, because none of them ever asserted that
+the handle was present.
+
+The browser suite does notice: `PickUpRefusalTest` and `KeyboardReorderTest` alone
+go `19 failed, 3 passed`. So the default is covered — but it was covered only by the
+slower suite, and the three regression guards added here are what make it visible in
+the fast one. That asymmetry is why they are worth their runtime.
+
+### ⚠️ Are the two guards the F1/F9/F10 shape? Checked, and NO
+
+PA-18 is enforced in two places — the blade omits the handle, the controller omits
+the Space binding — which is the silhouette of findings F1, F9 and F10: correct code
+protected twice, where no single mutation shows either half is needed. Checked
+rather than assumed, by mutating each alone:
+
+| Mutation | Result |
+|---|---|
+| remove the **controller** guard only (blade intact) | **4 failed** — C3 and C4 only; C1/C2 stay green |
+| remove the **blade** guard only (controller intact) | **2 failed** — C1 and C2 only; C3/C4 stay green |
+
+**Verdict**: not the two-mechanism shape. The two guards cover **different
+surfaces** — one the pointer affordance and the served markup, the other the
+keyboard binding in client state — and each reddens guards the other leaves green.
+Neither is defence in depth over the same refusal, and neither may be removed.
+
+⚠️ **A single check inside the controller is deliberately the whole keyboard guard.**
+Space is the only entrance to a hold, so `heldId` can never leave `null` and the
+held-key block in `onTreeKeydown()` is unreachable **by construction**. A second
+check there would have been a mechanism no single mutation could show was needed —
+manufacturing the F1 shape rather than discovering it.
+
+### ⚠️ Finding F40 — a "restore" that silently reverted the whole implementation
+
+The blade-only mutation above was run first as `git checkout resources/js/tree.js`
+to undo the previous mutation. It reported `6 failed` — C1/C2 **and** C3/C4 — which
+read as proof that the blade guard alone carried all four, and would have been
+written up as exactly the F1 shape this section was checking for.
+
+It was wrong. The implementation was **not committed yet**, so `git checkout`
+restored `tree.js` to its *pre-amendment* state rather than to the mutated-minus-one
+state intended — silently reverting the controller guard along with the mutation.
+The run had removed **both** mechanisms, not one.
+
+Caught by F7's own rule applied to the other direction: before believing a result,
+confirm the file is in the state you think it is. `grep` for the guard returned
+nothing. The implementation was re-applied, the mutation re-run, and the honest
+answer — `2 failed`, C1/C2 only — is the one recorded above.
+
+**The general lesson, and it is F7's with the sign flipped**: `git checkout` is not
+a mutation-revert tool while the implementation is uncommitted, because it reverts
+to the last commit rather than to the pre-mutation working tree. Later mutations
+restored from a file snapshot taken after implementation instead. **A silent
+over-restore and a genuine two-mechanism finding produce identical output**, and
+only one of them is a finding.
+
+### ⚠️ A C6 guard that HANGS rather than reddens
+
+Under M-B — the chevron dropped when ordering is off — the browser case
+`it still collapses when the chevron is clicked` did not fail. It **hung**, and the
+run was killed at ten minutes: the driver's `click()` waits for a selector that the
+mutation had removed, and a wait has no timeout short enough to look like a red.
+
+Not a defect in the guard, but worth recording as a property of it: **a browser
+guard asserting that an element still WORKS cannot redden when that element is
+missing — it stalls.** The discriminating red for C6 came from the bridge case
+`it still renders the chevron and the expanded state`, which is markup and fails in
+50ms. Both are kept: the bridge one is what proves C6 discriminates, the browser one
+is what proves the controller agrees.
+
+⚠️ That hung run leaked **8** `playwright run-server` orphans, and a later one leaked
+a ninth. All were killed by PID (never `pkill -f`, which matches its own command
+line). Checked before the session and after every run:
+`ps -eo pid,etimes,args | grep "[p]laywright run-server"`.
+
+### Left deliberately unproved
+
+⚠️ **T099 / SC-011 is untouched by this amendment and remains OPEN and UNPROVED.**
+PA-18 changes what is announced — C4 requires silence where there used to be a
+pick-up — and the axe pass over `/admin/unordered-tree` reports zero violations.
+**Neither is evidence for SC-011.** Axe proves a name exists; it cannot hear a
+sentence, and the screen-reader walk is deferred by owner decision (2026-08-18).
+Deferring a proof is not obtaining one.

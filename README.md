@@ -141,6 +141,31 @@ class TreeCategories extends \Rolland\Tree\Filament\Pages\TreePage
 Optional hooks: `badgesFor()`, `rowActions()`, `headerActions()`, `leafSlot()`,
 `confirmationFor()`, `treeStrings()`.
 
+### A page with no concept of order
+
+Some trees are navigation, not arrangement — a folder browser, say, where a folder's position
+among its siblings means nothing. Such a page returns `false` from `treeReorderEnabled()`:
+
+```php
+public function treeReorderEnabled(): bool
+{
+    return false;
+}
+```
+
+The drag handle is not rendered, nothing is draggable, and the Space key does not pick anything
+up. **Everything else is untouched** — the roles and `aria-*`, expand and collapse by pointer and
+by arrow key, the search, and the roving tabindex.
+
+⚠️ **This is not `canMoveNode()`.** That hook answers *"may this actor move this node"*, and a
+false answer refuses a pick-up while still rendering the handle and still announcing a *permission*
+refusal — which, on a page that has retired ordering, tells a screen-reader user they lack a
+permission rather than that there is nothing to order. Use `treeReorderEnabled()` for "this page
+has no order" and `canMoveNode()` for "not this row, not this actor".
+
+⚠️ It removes the **affordance**, not the guard. `authorizeTreeMove()` is still what decides
+whether a move commits.
+
 ### Assets
 
 **No bundler, no npm, no theme change, and no `@source` glob pointed into `vendor/`.** The

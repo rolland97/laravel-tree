@@ -14,8 +14,14 @@
             ⚠️ The initial collapse state is the SECOND argument (PA-8), passed the
             same way the strings are: server-side, host-controlled, no $wire round
             trip for something the server already knows.
+
+            ⚠️ And whether the page HAS ordering is the third (PA-18), for the same
+            reason. It has to reach the controller and not only the markup: removing
+            the handle takes the pointer affordance away, but the Space binding lives
+            here, and a keyboard actor on a page with no order must not be able to
+            pick anything up.
         --}}
-        x-data="ltree(@js($this->treeStrings()), @js($this->treeBranchesStartCollapsed()))"
+        x-data="ltree(@js($this->treeStrings()), @js($this->treeBranchesStartCollapsed()), @js($this->treeReorderEnabled()))"
         x-on:keydown="onTreeKeydown($event)"
         x-on:focusout="onTreeFocusOut($event)"
         class="ltree-root"

@@ -285,6 +285,7 @@ implements or overrides:
 | `treeAccessibleName(): string` | no | ⚠️ The **tree's own** accessible name. Defaults to the navigation label |
 | `treeBranchesStartCollapsed(): bool` | no | Do branches start closed? Defaults to `false` — open, as before the slot existed |
 | `canMoveNode(Model $node): bool` | no | ⚠️ May THIS ACTOR move this node? A keyboard **courtesy**; defaults to `true` |
+| `treeReorderEnabled(): bool` | no | ⚠️ Does this PAGE offer ordering at all? Defaults to `true`. A false answer **removes the affordance** rather than refusing it (PA-18) |
 
 Public Livewire entry points on the page: `placeNode(...)`, `confirmPendingMove()`,
 `cancelPendingMove()`.
@@ -931,3 +932,67 @@ value, so a future palette change cannot reintroduce the collision silently.
 
 **Migration**: a host that deliberately relied on the tree following the OS while its panel did
 not — no known host does — loses that. Everything else moves from broken to correct.
+
+#### `treeReorderEnabled()` — ⚠️ AMENDMENT (after v0.9.0, 001-tree-v1), **PA-18**
+
+```php
+public function treeReorderEnabled(): bool;   // defaults to true
+```
+
+**What was missing.** The package could refuse a move **per node** and **per actor** —
+`canMoveNode()` for presentation, `authorizeTreeMove()` at the commit. Both are *permission*
+answers. Neither can say **"this page has no concept of order"**, and the second consumer's
+Drive-style folder browser is exactly that page: the tree is a navigation control, and a folder's
+position among its siblings means nothing there.
+
+⚠️ **Why `canMoveNode()` returning false everywhere is not the same thing, and is worse than
+nothing.** A false answer sets `data-ltree-immovable` and refuses a pick-up — but the drag handle
+**still renders on every row**, and the keyboard **still answers Space**, with a *permission*
+refusal. That page would therefore show an affordance it cannot honour, and announce *"you cannot
+move this"* about a concept it has retired. The sighted user sees a handle that does nothing; the
+screen-reader user is told they lack a permission, which is a different and false statement. It is
+a lie in the only channel that user has, and it is the same visual/semantic disagreement that
+produced PA-10 and finding F38. Verified by reading the package rather than assumed: the handle is
+unconditional in `tree-branch.blade.php`, the keyboard stays bound in `tree.js`, and a `grep` for
+`reorderEnabled|treeReorderable|showHandle|handleVisible` matched nothing.
+
+**What a `false` answer does — and only this:**
+
+| | Behaviour |
+|---|---|
+| C1 | No `.ltree-handle` is rendered on any row |
+| C2 | Nothing carries `draggable="true"` |
+| C3 | The Space binding is not registered — the keystroke is not even consumed |
+| C4 | The live region stays **empty**; nothing about ordering is announced |
+
+**What a `false` answer must NOT do — and this is the whole point of calling it an amendment:**
+
+| | Unchanged |
+|---|---|
+| C5 | `role="tree"` / `treeitem` / `group` and every `aria-*` |
+| C6 | Expand and collapse, by pointer and by ArrowRight/ArrowLeft |
+| C7 | Search-reveal (PA-11) |
+| C8 | `data-ltree-locked` and `data-ltree-immovable` keep their PA-13 meanings on the default path |
+
+⚠️ **The default cannot be false.** Every existing host already has ordering, and flipping the
+default would silently remove it from all of them. The regression guards assert the default path
+as loudly as the new one, because a mutation run proved the **bridge suite alone could not have
+caught a false default** — it never asserted the handle's presence. Nineteen *browser* guards do.
+
+⚠️ **Two mechanisms, and each is separately necessary.** The blade omits the handle; the
+controller omits the Space binding. That looks like the two-mechanism shape findings F1, F9 and
+F10 warn about — correct code no single mutation can show is needed — and it was checked rather
+than assumed. Removing only the controller guard reddens C3/C4 and leaves C1/C2 green; removing
+only the blade guard reddens C1/C2 and leaves C3/C4 green. They cover *different* surfaces, not
+the same one twice, so neither may be "tidied away".
+
+⚠️ **Presentation, not permission.** This slot does **not** refuse `placeNode()`. The security
+boundary is unchanged and is still `authorizeTreeMove()`, re-decided on every committing call
+(PA-2) — a slot that removes an affordance was never the guard, exactly as PA-13 is not.
+Deliberate, and not an oversight: making a `false` here refuse the committing path would also
+foreclose **drag-to-nest**, which is a *move* rather than a *reorder* and which the same consumer
+needs next. The contract puts removing the ordering code explicitly out of scope for the same
+reason.
+
+**Migration**: none. A host that overrides nothing keeps the ordering it has today.
+
