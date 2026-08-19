@@ -395,6 +395,33 @@ the surface is still moving (`AGENTS.md` R-035).
 
 ---
 
+## Phase 10: PA-19 — the tree as content, so a host can compose it (after v0.9.0)
+
+⚠️ Raised by the SAME consumer slice (074) once PA-18 landed: its page needs **three
+regions** (FR-001) and the tree could only be a whole page. Contract:
+`contracts/package-amendment-pa19.md` in that repository, C1–C7 binding. ⚠️ **Still no tag.**
+
+- [X] T109 [PA-19] Composed host fixtures: `ComposedTreePage` (own view, includes the
+      partial) and `ComposedUnorderedTreePage` (composed **and** PA-18 off). ⚠️ The second
+      exists because the two amendments must hold together and only a composed-and-unordered
+      host can catch a dropped `x-data` argument.
+- [X] T110 [PA-19] Watch C1 and C3–C7 fail — `View [tree-content] not found`, twelve cases.
+- [X] T111 [PA-19] Split `tree.blade.php`: everything inside the page component moves to
+      `tree-content.blade.php`, and the page view becomes a wrapper that includes it.
+      ⚠️ **Blade only** — `resources/js/` and `resources/css/` are untouched, so no rebuild.
+- [X] T112 [PA-19] ⚠️ **C2 is proven by NOT touching the existing suites.** 358 existing
+      cases pass unchanged; its value is that it never went red.
+- [X] T113 [PA-19] Prove each new guard discriminates. ⚠️ Two were written wrong and are
+      written up in the validation log: a comparison whose two sides shared the mutated
+      component, and a bridge assertion blind to a controller argument.
+- [X] T114 [PA-19] Document `tree::tree-content` as public in `contracts/public-api.md` and
+      `README.md`, and say plainly that `tree-branch` is not.
+
+**Checkpoint**: `composer test`, `composer analyse`, `composer test:lint` green; 074's
+three-region layout unblocked.
+
+---
+
 ## Dependencies & execution order
 
 ### Phase dependencies

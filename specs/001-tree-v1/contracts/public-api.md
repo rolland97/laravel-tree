@@ -996,3 +996,63 @@ reason.
 
 **Migration**: none. A host that overrides nothing keeps the ordering it has today.
 
+#### `tree::tree-content` — ⚠️ AMENDMENT (after v0.9.0, 001-tree-v1), **PA-19**
+
+```blade
+{{-- a host's own page view --}}
+<x-filament-panels::page>
+    <x-my-breadcrumb />
+    <div class="my-two-column-grid">
+        <aside>@include('tree::tree-content')</aside>
+        <main><x-my-contents-pane /></main>
+    </div>
+</x-filament-panels::page>
+```
+
+**What was missing.** The package shipped **two** views, and `tree.blade.php` opened with
+`<x-filament-panels::page>` — so the tree **was** a page rather than something a host could
+put beside anything else. `getView()` was already overridable, but a host view would then
+have had to reproduce the tree's inner markup: the `x-data="ltree(...)"` controller wrapper,
+the `wire:ignore` live region, the search toolbar and the `role="alertdialog"` confirmation.
+`README.md` excludes the package's blades from its public surface, so that route was not
+supported — the honest answer to *"can I put a contents pane beside the tree?"* was **no**.
+
+The second consumer's folder browser needs exactly three regions on one page: a breadcrumb,
+the tree as a sidebar, and a contents pane (074 FR-001).
+
+⚠️ **Same shape as PA-1.** That amendment made the tree a **trait** because a host needed a
+different *class* shell — `Resources\Pages\Page`, to keep `route()`. This one makes its
+markup includable because a host needs a different *layout* shell. One body, many shells,
+nothing to drift.
+
+**The split**: everything inside the page component moved to `tree::tree-content`, and
+`tree::tree` became a thin wrapper that includes it. `getView()` still returns
+`'tree::tree'`, so **no existing host moves**.
+
+⚠️ **`tree::tree-content` is PUBLIC. `tree::tree-branch` is NOT** — it is recursive, takes
+three required variables, and is an implementation detail of the partial. The public
+client-side surface is now: the `ltree-` class prefix, the `data-ltree-*` hooks, and this
+include.
+
+⚠️ **The partial must never open a page component**, or a host including it renders one page
+inside another. Guarded twice, on purpose and after getting it wrong once — see below.
+
+⚠️ **Two guards in this amendment were written wrong first, and both are recorded because
+the mistakes generalise.**
+
+1. *A comparison whose two sides shared the mutated component.* The nesting guard first
+   compared the composed host against `OrderedTwinTreePage` — but **both** render the
+   partial, so re-adding the page component doubled both counts equally (8 and 8) and the
+   guard could not see it. It now compares against `SpikePage`, a plain Filament page that
+   does **not** include the tree. **A comparison is only a guard when the two sides do not
+   share the thing being mutated.**
+2. *A bridge assertion that could not see a controller argument.* PA-18's answer reaches the
+   controller as the **third** `x-data` argument, and this amendment moves the element
+   carrying it into another file. Dropping that argument leaves markup that is entirely
+   correct — no handle, nothing draggable, every bridge assertion green at **26 passed** —
+   while the controller defaults `reorderEnabled` back to `true` and the keyboard picks rows
+   up on a page that has no ordering. Only a **browser** case on a composed-AND-unordered
+   host catches it, and one now exists.
+
+**Migration**: none. A host that overrides nothing keeps the page it has today.
+
