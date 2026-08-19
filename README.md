@@ -166,6 +166,30 @@ has no order" and `canMoveNode()` for "not this row, not this actor".
 ⚠️ It removes the **affordance**, not the guard. `authorizeTreeMove()` is still what decides
 whether a move commits.
 
+### Putting the tree in your own layout
+
+By default the tree is the whole page. If you need it beside something else — a breadcrumb,
+a contents pane — override `getView()` with your own view and include the tree as content:
+
+```blade
+{{-- your page view --}}
+<x-filament-panels::page>
+    <x-my-breadcrumb />
+
+    <div class="my-two-column-grid">
+        <aside>@include('tree::tree-content')</aside>
+        <main><x-my-contents-pane /></main>
+    </div>
+</x-filament-panels::page>
+```
+
+`tree::tree-content` is part of the public surface, alongside the `ltree-` class prefix and
+the `data-ltree-*` hooks. It carries the tree, its keyboard controller, its live region, the
+search box and the confirmation — everything you would otherwise have had to reproduce.
+
+⚠️ Do **not** include `tree::tree-branch`. It is recursive, needs three variables, and is an
+implementation detail. ⚠️ Your view supplies the page component; the partial does not.
+
 ### Assets
 
 **No bundler, no npm, no theme change, and no `@source` glob pointed into `vendor/`.** The

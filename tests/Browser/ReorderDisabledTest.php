@@ -240,3 +240,53 @@ it('still reveals a match inside a branch nobody opened', function () {
 it('reports no accessibility violations with ordering retired', function () {
     reorderOffBootedTree(visit('/admin/unordered-tree'))->assertNoAccessibilityIssues();
 });
+
+// ── PA-19 × PA-18 — both amendments must hold TOGETHER ───────────────────────
+
+/*
+| ⚠️ These exist because a bridge guard could not catch the failure.
+|
+| PA-19 moves the element carrying `x-data="ltree(strings, collapsed, reorder)"` into
+| `tree-content.blade.php`. Dropping the THIRD argument during that move leaves markup
+| that is entirely correct — no handle, nothing draggable, every bridge assertion green
+| — while the controller defaults `reorderEnabled` back to `true` and the keyboard picks
+| rows up on a page that has no ordering. Measured: with the argument dropped, the whole
+| bridge suite stayed green at 26 passed.
+|
+| That half-state — no affordance, but the keyboard still holding and announcing — is
+| the precise thing PA-18 exists to prevent, so it needs a guard where the controller
+| actually runs.
+*/
+it('does not pick up on a composed host that retired ordering', function () {
+    $page = reorderOffBootedTree(visit('/admin/composed-unordered-tree'));
+
+    expect(reorderOffPressKey($page, $this->charlie->id, ' '))->toBeFalse();
+    expect(reorderOffIsHeld($page, $this->charlie->id))->toBeNull();
+    expect(reorderOffAnnouncement($page))->toBe('');
+});
+
+it('still picks up on a composed host that kept ordering', function () {
+    // ⚠️ The discrimination. Without it, a composed layout whose controller never
+    // booted at all would pass the case above.
+    $page = reorderOffBootedTree(visit('/admin/composed-tree'));
+
+    expect(reorderOffPressKey($page, $this->charlie->id, ' '))->toBeTrue();
+    expect(reorderOffIsHeld($page, $this->charlie->id))->toBe('true');
+});
+
+it('renders the tree inside the composed host layout in a real browser', function () {
+    // ⚠️ The bridge proves the server sent it. This proves Alpine booted INSIDE the
+    // host's own regions — a layout that renders but whose controller never
+    // initialises looks identical in served html.
+    $page = reorderOffBootedTree(visit('/admin/composed-tree'));
+
+    $page->assertPresent('[data-host-region="breadcrumb"]')
+        ->assertPresent('[data-host-region="pane"]')
+        ->assertPresent('[data-host-region="sidebar"] [role="tree"]');
+
+    expect($page->script("document.querySelectorAll('[data-ltree-key][tabindex=\"0\"]').length"))->toBe(1);
+});
+
+it('reports no accessibility violations in the composed layout', function () {
+    reorderOffBootedTree(visit('/admin/composed-tree'))->assertNoAccessibilityIssues();
+});

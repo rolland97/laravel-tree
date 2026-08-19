@@ -1989,3 +1989,89 @@ pick-up — and the axe pass over `/admin/unordered-tree` reports zero violation
 **Neither is evidence for SC-011.** Axe proves a name exists; it cannot hear a
 sentence, and the screen-reader walk is deferred by owner decision (2026-08-18).
 Deferring a proof is not obtaining one.
+
+---
+
+## PA-19 — the tree as content, so a host can compose it (T109–T114)
+
+Raised by the same consumer as PA-18, immediately after it: 074's page needs a breadcrumb,
+the tree as a sidebar, and a contents pane (FR-001), and the tree could only be a whole page.
+
+**Baseline before any change**: `composer test` → `358 passed`.
+
+### Absence red, C1 and C3–C7
+
+Twelve cases, all red before the split: **`View [tree-content] not found`**. Absence red,
+and recorded as such — it proves the cases reach the include and nothing more.
+
+### C2 — proven by NOT touching anything
+
+All **358** existing cases pass unchanged. No existing test was edited, and that is the
+whole proof: this amendment must be invisible to every host rendering through `tree::tree`.
+Final suite **370 passed** (358 + 12 new bridge cases), then **374** once the four composed
+browser cases were added.
+
+### Mutation red
+
+| # | Mutation | Guards reddened |
+|---|---|---|
+| M1 | the partial opens a page component again | 2 — the nesting guard and the structural guard, `Failed asserting that 8 is identical to 4` |
+| M2 | drop the `x-data` controller attribute | 2 |
+| M3 | drop the live region | 1 |
+| M4 | drop the **third** `x-data` argument (PA-18's answer) | **0 in the bridge suite — see below** |
+
+### ⚠️ Finding F41 — a guard whose two sides shared the mutated component
+
+The nesting guard (C1) first compared the composed host's `fi-page` count against
+`OrderedTwinTreePage`. Under M1 it stayed **green**.
+
+Investigated rather than accepted, and the cause is not subtle once seen: **both** pages
+render the partial — `tree::tree` includes it too — so re-adding the page component doubled
+**both** counts equally. Measured: composed **8**, plain **8**. The guard compared two
+things that moved together.
+
+Rebuilt against `SpikePage`, a plain Filament page that does **not** include the tree, and
+it now fails correctly: `Failed asserting that 8 is identical to 4`. A second, structural
+guard was added beside it, asserting the partial's own source opens no page component —
+because "is this file a page?" is a question about the file, and asserting it directly
+cannot be fooled by however a future Filament version marks a page.
+
+⚠️ **The general rule, and it is new to this log**: *a comparison is only a guard when the
+two sides do not share the thing being mutated.* This is a different failure from F1/F9/F10
+(two mechanisms protecting one rule) — here there is one mechanism, and the **test** was
+built so that breaking it moved both sides of the equation.
+
+⚠️ The structural guard also went red against **correct** code on its first run, because the
+partial's own docblock shows a host how to compose the tree and that example necessarily
+contains `<x-filament-panels::page>`. It now strips blade comments first. Recorded because
+the instinct on seeing that red is to weaken the assertion; the right fix was to narrow what
+it reads.
+
+### ⚠️ Finding F42 — a bridge suite blind to a controller argument
+
+PA-18's answer reaches the Alpine controller as the **third** `x-data` argument, and PA-19
+moves the element carrying it into a different file. Dropping that argument during the move
+(M4) leaves markup that is **entirely correct** — no handle, nothing draggable — while the
+controller defaults `reorderEnabled` back to `true`.
+
+The whole bridge suite stayed green: **26 passed**, including every PA-18 markup guard.
+
+That half-state is precisely what PA-18 exists to prevent: no affordance, but a keyboard
+that still picks rows up and announces them — a page telling a screen-reader user about a
+concept it has retired. Four browser cases were added on composed hosts (ordered and
+unordered), and re-running M4 now reddens **5**.
+
+⚠️ **The lesson is about layers, not about this bug.** A markup guard cannot see a value
+passed *through* markup into client state. Anything a blade hands to the controller needs a
+guard where the controller runs.
+
+### Not rebuilt, deliberately
+
+`resources/js/` and `resources/css/` are untouched — this is a blade-only split — so
+`resources/dist/` is unchanged and no `npm run build` was needed. Verified rather than
+assumed: `git status` shows no `dist/` change.
+
+### Still unproved
+
+⚠️ **T099 / SC-011 remains OPEN and UNPROVED**, and this amendment does not touch it. The
+composed layout passes axe in a real browser, which proves names exist and nothing more.
