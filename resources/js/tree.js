@@ -17,7 +17,7 @@
 const NEST_BAND_START = 0.25
 const NEST_BAND_END = 0.75
 
-function ltree(strings = {}, startCollapsed = false) {
+function ltree(strings = {}, startCollapsed = false, reorderEnabled = true) {
     return {
         strings,
 
@@ -29,6 +29,20 @@ function ltree(strings = {}, startCollapsed = false) {
          * `false`, which is what every host got before the slot existed.
          */
         startCollapsed,
+
+        /**
+         * Whether this page offers sibling ordering at all (PA-18).
+         *
+         * ⚠️ The host's answer, passed as the third argument for the same reason the
+         * strings and the collapse state are: the server already knows it. The default
+         * is `true`, which is what every host got before the slot existed.
+         *
+         * ⚠️ NOT the same question as `data-ltree-immovable`. That attribute says this
+         * ACTOR may not move this NODE, and `pickUp()` refuses it with an announcement
+         * saying so. This says the PAGE has no order, so there is nothing to refuse and
+         * nothing to say — the binding simply is not there.
+         */
+        reorderEnabled,
 
         /** The row that owns the tree's single tab stop. */
         focusedId: null,
@@ -893,7 +907,24 @@ function ltree(strings = {}, startCollapsed = false) {
                 return
             }
 
+            // ⚠️ PA-18. On a page with no concept of order the move bindings are not
+            // registered AT ALL — not registered and then refused.
+            //
+            // ⚠️ `preventDefault()` is deliberately on the far side of this guard. A
+            // handler that ran, held nothing and swallowed the keystroke would still be
+            // taking Space away from the browser on a page that has no use for it, and
+            // it would still be a binding — which is what C3 says must not exist.
+            //
+            // ⚠️ Space is the ONLY entrance to a hold, so guarding it here is the whole
+            // guard: `heldId` can never leave `null`, and the held-key block above is
+            // unreachable by construction rather than by a second check. A second check
+            // would be a mechanism no single mutation could show was needed
+            // (validation-log findings F1, F9, F10).
             if (event.key === ' ' || event.key === 'Spacebar') {
+                if (!this.reorderEnabled) {
+                    return
+                }
+
                 event.preventDefault()
                 this.pickUp(row)
 

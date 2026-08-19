@@ -84,14 +84,27 @@ prevent.
     {{--
         ⚠️ Drag starts ONLY from this handle, so activating a row action never
         begins a drag (spec FR-023, AGENTS.md R-022).
+
+        ⚠️ PA-18. A host that has retired ordering renders NO handle at all, rather
+        than a handle that refuses. `canMoveNode()` — the per-actor, per-node
+        permission slot — deliberately does NOT reach here: a node this actor may
+        not move still belongs to a page that HAS ordering, so it keeps its
+        affordance and is refused with an announcement that says why (PA-13). Only
+        the page-level answer removes the affordance.
+
+        ⚠️ The whole element goes, not just the class. `draggable="true"` is what
+        the browser acts on, so a handle left in place and merely unstyled would
+        still start drags on a page with no concept of order.
     --}}
-    <span
-        class="ltree-handle"
-        data-ltree-handle
-        draggable="true"
-        aria-hidden="true"
-        tabindex="-1"
-    >⠿</span>
+    @if ($this->treeReorderEnabled())
+        <span
+            class="ltree-handle"
+            data-ltree-handle
+            draggable="true"
+            aria-hidden="true"
+            tabindex="-1"
+        >⠿</span>
+    @endif
 
     @if ($hasChildren)
         {{--
